@@ -4,18 +4,18 @@ const path = require("path");
 const { execSync } = require("child_process");
 
 //在编译前对pug文件做一些处理
-function pugFileContentConversion(fileContent) {
+function beforePugFileConversion(fileContent, curPath) {
   fileContent = fileContent.replace(/include(.*)(?= )/g, (str) => {
     return str.replace(/less/g, "css");
-  });
-  fileContent = fileContent.replace(/src(.*)(?=\))/g, (str) => {
-    return str.replace("/img", "../img");
   });
   fileContent = fileContent.replace(/extends(.*)(?=.pug)/g, (str) => {
     return str.replace(/template/g, "temp");
   });
   return fileContent;
 }
+
+//在编译后对html处理
+function afterCompilingConversion(fileContent, curPath) {}
 
 //编译less->css
 async function compileLessToCss() {
@@ -124,61 +124,52 @@ async function copyFilesRecursively(sourceDir, targetDir) {
 }
 
 //将处理完的pug文件拷到temp文件夹然后编译pug文件输出到output文件夹下
-async function generateFinalPug() {
-  let pugFilePath = path.join(__dirname, "/template/");
-  let obj = await readAllFilesValueInFolder(pugFilePath, [".pug"]);
-  await compileLessToCss();
-  for (const key in obj) {
-    if (Object.hasOwnProperty.call(obj, key)) {
-      obj[key] = pugFileContentConversion(obj[key]);
-      let newKey = key.replace("template", "temp");
-      obj[newKey] = obj[key];
-      delete obj[key];
-      await writeFileWithCreate(newKey, obj[newKey]);
+async function main() {
+  try {
+    let pugFilePath = path.join(__dirname, "/template/");
+    let obj = await readAllFilesValueInFolder(pugFilePath, [".pug"]);
+    await compileLessToCss();
+    for (const key in obj) {
+      if (Object.hasOwnProperty.call(obj, key)) {
+        obj[key] = beforePugFileConversion(obj[key], key);
+        let newKey = key.replace("template", "temp");
+        obj[newKey] = obj[key];
+        delete obj[key];
+        await writeFileWithCreate(newKey, obj[newKey]);
+      }
     }
+    let proList = [];
+    ["css", "img", "js"].forEach(async (str) => {
+      let targetFolderPath = path.join(__dirname, "/temp", str);
+      let targetFolderPath2 = path.join(__dirname, "/output", str);
+      let sourceFolderPath = path.join(__dirname, "/assets", str);
+      if (str !== "img") {
+        proList.push(
+          new Promise(async (resolve, reject) => {
+            await copyFilesRecursively(sourceFolderPath, targetFolderPath);
+            resolve();
+          })
+        );
+      }
+      await copyFilesRecursively(sourceFolderPath, targetFolderPath2);
+    });
+    await Promise.all(proList);
+    await fsPro.rm(path.join(__dirname, "/output"), { recursive: true });
+    Object.keys(obj).forEach((key) => {
+      if (key.includes("pages")) {
+        const basedir = path.join(__dirname, "/temp");
+        let html = pug.compileFile(key, { basedir, category: "xy" })({
+          data: [1, 2, 3, 4]
+        });
+        let outputPath = key
+          .replace(/temp/g, "output")
+          .replace(/\.pug/g, ".html");
+        writeFileWithCreate(outputPath, html);
+      }
+    });
+  } catch (error) {
+    console.log(error);
   }
-  let proList = [];
-  ["css", "img", "js"].forEach(async (str) => {
-    let targetFolderPath = path.join(__dirname, "/temp", str);
-    let targetFolderPath2 = path.join(__dirname, "/output", str);
-    let sourceFolderPath = path.join(__dirname, "/assets", str);
-    if (str !== "img") {
-      proList.push(
-        new Promise(async (resolve, reject) => {
-          await copyFilesRecursively(sourceFolderPath, targetFolderPath);
-          resolve();
-        })
-      );
-    }
-    await copyFilesRecursively(sourceFolderPath, targetFolderPath2);
-  });
-  await Promise.all(proList);
-  Object.keys(obj).forEach((key) => {
-    if (key.includes("pages")) {
-      const basedir = path.join(__dirname, "/temp");
-      let html = pug.compileFile(key, { basedir })();
-      let outputPath = key
-        .replace(/temp/g, "output")
-        .replace(/\.pug/g, ".html");
-      writeFileWithCreate(outputPath, html);
-    }
-  });
 }
 
-generateFinalPug();
-
-// (async () => {
-//   for (const key in obj) {
-//     if (Object.hasOwnProperty.call(obj, key)) {
-//       obj[key] = pugFileContentConversion(obj[key]);
-//     }
-//   }
-//   for (const key in obj) {
-//     if (Object.hasOwnProperty.call(obj, key)) {
-//       console.log(obj[key]);
-//       pug.compile(obj[key], {
-//         filename: "base.pug"
-//       })();
-//     }
-//   }
-// })();
+main();

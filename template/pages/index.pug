@@ -1,1 +1,10 @@
-include /components/footer.pug
+extends /base/base.pug
+block body 
+    div.index
+        each item in data
+            div.index-item=item
+                div.index-item-top
+                    div(style="display: flex; align-items: center")
+                        img(src="/img/icon.svg", alt="")
+                        h2 #{category}
+    include /components/footer.pug

@@ -2,7 +2,8 @@ import express from "express";
 import ip from "ip";
 import fse from "fs-extra";
 import path from "path";
-import { generateJsonDataFile } from "./getData.js";
+import { generateJsonDataFile } from "./getPageData.js";
+import _ from "lodash";
 
 const __dirname = path.resolve();
 const config = await fse.readJson("./config.json");
@@ -18,15 +19,23 @@ app.use("/js", express.static("./assets/js"));
 app.use("/img", express.static("./assets/img"));
 app.use(express.static("./assets/rootPath"));
 
-app.get("*", (req, res) => {
+app.get("*", async (req, res) => {
   let template = req.path.slice(1).replace(".html", ".pug");
+  let JsonPath = path.join(__dirname, "/devJsonData");
+
   if (req.path == "/") {
     template = "index.pug";
   }
   if (!fse.pathExistsSync(path.join(__dirname, "temp", "pages", template))) {
     template = "index.pug";
   }
-  res.render(template);
+  let pathStr = req.path.split("/")[1];
+  let site = config.siteList.includes(pathStr) ? pathStr : "us";
+
+  let jsonData = await fse.readJSON(
+    path.join(JsonPath, site, template.replace(".pug", ".json"))
+  );
+  res.render(template, _.merge(config.common));
 });
 
 app.listen(config.devServer.port);

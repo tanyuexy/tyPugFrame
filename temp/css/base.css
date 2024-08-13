@@ -1,3 +1,24 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-weight: normal;
+}
 body {
+  background-color: #fbfbfb;
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  min-width: 320px;
+  height: 100%;
+  margin: 0px;
+  padding: 0px;
+  font-family: Rubik, sans-serif;
+  font-size: 14px;
+  line-height: 1.25;
+  -webkit-font-smoothing: antialiased;
+  color: #171e47;
   font-family: "Outfit", sans-serif;
 }

@@ -1,1 +1,8 @@
-{}
+{
+    "devServer": {
+        "port": 3000
+    },
+    "siteList": [
+        "us"
+    ]
+}

@@ -1,11 +1,14 @@
-const fsPro = require("node:fs/promises");
-const pug = require("pug");
-const path = require("path");
-const { execSync } = require("child_process");
+import fse from "fs-extra";
+import pug from "pug";
+import path from "path";
+import { execSync } from "child_process";
+import allDataObj from "./getData";
+
+const __dirname = path.resolve();
 
 //在编译前对pug文件做一些处理
 function beforePugFileConversion(fileContent, curPath) {
-  fileContent = fileContent.replace(/include(.*)(?= )/g, (str) => {
+  fileContent = fileContent.replace(/include.*\.less/g, (str) => {
     return str.replace(/less/g, "css");
   });
   fileContent = fileContent.replace(/extends(.*)(?=.pug)/g, (str) => {
@@ -14,14 +17,12 @@ function beforePugFileConversion(fileContent, curPath) {
   return fileContent;
 }
 
-//在编译后对html处理
-function afterCompilingConversion(fileContent, curPath) {}
-
 //编译less->css
 async function compileLessToCss() {
   let lessFilesPath = path.join(__dirname, "/assets/less");
+  await fse.ensureDir(lessFilesPath);
   try {
-    const files = await fsPro.readdir(lessFilesPath, {
+    const files = await fse.readdir(lessFilesPath, {
       recursive: true
     });
     files
@@ -29,40 +30,10 @@ async function compileLessToCss() {
       .forEach(async (fileName) => {
         let lessPath = path.join(lessFilesPath, fileName);
         let cssPath = lessPath.replace(/less/g, "css");
-        if (!(await checkFileExists(cssPath)))
-          execSync(`lessc ${lessPath} ${cssPath}`);
+        execSync(`lessc ${lessPath} ${cssPath}`);
       });
   } catch (error) {
     console.log(error);
-  }
-}
-
-//判断一个文件夹或者文件是否存在
-async function checkFileExists(filePath) {
-  try {
-    await fsPro.access(filePath);
-    return true;
-  } catch (err) {
-    return false;
-  }
-}
-
-//写入文件如果遇到不存在的目录则创建
-async function writeFileWithCreate(filePath, data) {
-  const folderPath = path.dirname(filePath);
-  try {
-    // 检查文件夹是否存在，如果不存在则先创建文件夹
-    try {
-      await fsPro.access(folderPath);
-    } catch (error) {
-      await fsPro.mkdir(folderPath, { recursive: true });
-    }
-
-    // 创建文件并写入数据
-    await fsPro.writeFile(filePath, data);
-    // console.log(`文件 ${filePath} 已成功创建并写入数据`);
-  } catch (err) {
-    console.error(`写入文件时出错: ${err}`);
   }
 }
 
@@ -71,7 +42,7 @@ async function readAllFilesValueInFolder(folderPath, fileExtArr) {
   let obj = {};
   let proList = [];
   try {
-    const files = await fsPro.readdir(folderPath, {
+    const files = await fse.readdir(folderPath, {
       recursive: true
     });
     files.forEach((fileName) => {
@@ -79,7 +50,7 @@ async function readAllFilesValueInFolder(folderPath, fileExtArr) {
         proList.push(
           new Promise(async (resolve, reject) => {
             const filePath = path.join(folderPath, fileName);
-            const fileContent = await fsPro.readFile(filePath, "utf8");
+            const fileContent = await fse.readFile(filePath, "utf8");
             obj[filePath] = fileContent;
             resolve();
           })
@@ -93,50 +64,21 @@ async function readAllFilesValueInFolder(folderPath, fileExtArr) {
   return obj;
 }
 
-//复制文件夹里的所有文件到另一个文件夹
-async function copyFilesRecursively(sourceDir, targetDir) {
-  try {
-    // 读取源文件夹中的文件列表
-    const files = await fsPro.readdir(sourceDir);
-
-    // 遍历文件列表
-    for (const file of files) {
-      const sourceFilePath = path.join(sourceDir, file);
-      const targetFilePath = path.join(targetDir, file);
-
-      const stats = await fsPro.lstat(sourceFilePath);
-
-      if (stats.isDirectory()) {
-        // 如果是子文件夹，递归调用复制函数
-        await fsPro.mkdir(targetFilePath, { recursive: true });
-        await copyFilesRecursively(sourceFilePath, targetFilePath);
-      } else {
-        // 如果是文件，直接复制文件
-        const data = await fsPro.readFile(sourceFilePath);
-        await writeFileWithCreate(targetFilePath, data);
-        // console.log(`Copied ${file} to ${targetDir}`);
-      }
-    }
-    // console.log("All files copied successfully.");
-  } catch (err) {
-    console.error("Error copying files:", err);
-  }
-}
-
-//将处理完的pug文件拷到temp文件夹然后编译pug文件输出到output文件夹下
-async function main() {
+/**
+ * 将处理完的pug文件拷到temp文件夹然后编译pug文件输出到output文件夹下
+ * @param {页面所需数据} data
+ */
+async function createPages(data) {
   try {
     let pugFilePath = path.join(__dirname, "/template/");
     let obj = await readAllFilesValueInFolder(pugFilePath, [".pug"]);
     await compileLessToCss();
     for (const key in obj) {
-      if (Object.hasOwnProperty.call(obj, key)) {
-        obj[key] = beforePugFileConversion(obj[key], key);
-        let newKey = key.replace("template", "temp");
-        obj[newKey] = obj[key];
-        delete obj[key];
-        await writeFileWithCreate(newKey, obj[newKey]);
-      }
+      obj[key] = beforePugFileConversion(obj[key], key);
+      let newKey = key.replace("template", "temp");
+      obj[newKey] = obj[key];
+      delete obj[key];
+      await fse.writeFile(newKey, obj[newKey]);
     }
     let proList = [];
     ["css", "img", "js"].forEach(async (str) => {
@@ -146,25 +88,25 @@ async function main() {
       if (str !== "img") {
         proList.push(
           new Promise(async (resolve, reject) => {
-            await copyFilesRecursively(sourceFolderPath, targetFolderPath);
+            await fse.copy(sourceFolderPath, targetFolderPath);
             resolve();
           })
         );
       }
-      await copyFilesRecursively(sourceFolderPath, targetFolderPath2);
+      await fse.copy(sourceFolderPath, targetFolderPath2);
     });
     await Promise.all(proList);
-    await fsPro.rm(path.join(__dirname, "/output"), { recursive: true });
-    Object.keys(obj).forEach((key) => {
+    await fse.remove(path.join(__dirname, "/output/pages"));
+    Object.keys(obj).forEach(async (key) => {
       if (key.includes("pages")) {
+        // console.log(data, key.slice(key.indexOf("pages")));
         const basedir = path.join(__dirname, "/temp");
-        let html = pug.compileFile(key, { basedir, category: "xy" })({
-          data: [1, 2, 3, 4]
-        });
+        let html = pug.compileFile(key, { basedir })(data);
         let outputPath = key
           .replace(/temp/g, "output")
           .replace(/\.pug/g, ".html");
-        writeFileWithCreate(outputPath, html);
+        await fse.ensureFile(outputPath);
+        await fse.writeFile(outputPath, html);
       }
     });
   } catch (error) {
@@ -172,4 +114,7 @@ async function main() {
   }
 }
 
+async function main() {
+  createPages(allDataObj);
+}
 main();

@@ -1,10 +1,19 @@
 extends /base/base.pug
+block style
+    include /css/pages/index.css
 block body 
     div.index
-        each item in data
-            div.index-item=item
-                div.index-item-top
-                    div(style="display: flex; align-items: center")
-                        img(src="/img/icon.svg", alt="")
-                        h2 #{category}
-    include /components/footer.pug
+        //- each categoryItem,index in data
+        //-     div.index-item=index
+        //-         div.index-item-top
+        //-             div(style="display: flex; align-items: center")
+        //-                 img(src="/img/icon.svg", alt="")
+        //-                 h2 #{categoryItem.category}
+        //-             p.showAllButton Show all Top
+                    //- include /components/gameCardList.pug
+    //-             div.index-item-imgList
+    //-                 each _,index in 6
+    //-                     a.imgItem(href=`/app/${categoryItem.list[idx - 1]?.info.img_name.slice(0,-4)}`)
+    //-                         img(src='https://resource.topziz.com/' + categoryItem.list[idx - 1]?.info.img_name, alt="") 
+    //-                         span.rate #{categoryItem.list[idx - 1]?.info.rate}         
+    //- include /components/footer.pug

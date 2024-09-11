@@ -1,42 +1,14 @@
 import fse from "fs-extra";
 import pug from "pug";
 import path from "path";
+import less from "less";
+import { getPagesPugFilePathArr } from "./utils.js";
 import { execSync } from "child_process";
-import allDataObj from "./getData";
 
 const __dirname = path.resolve();
-
-//在编译前对pug文件做一些处理
-function beforePugFileConversion(fileContent, curPath) {
-  fileContent = fileContent.replace(/include.*\.less/g, (str) => {
-    return str.replace(/less/g, "css");
-  });
-  fileContent = fileContent.replace(/extends(.*)(?=.pug)/g, (str) => {
-    return str.replace(/template/g, "temp");
-  });
-  return fileContent;
-}
-
-//编译less->css
-async function compileLessToCss() {
-  let lessFilesPath = path.join(__dirname, "/assets/less");
-  await fse.ensureDir(lessFilesPath);
-  try {
-    const files = await fse.readdir(lessFilesPath, {
-      recursive: true
-    });
-    files
-      .filter((item) => item.endsWith(".less"))
-      .forEach(async (fileName) => {
-        let lessPath = path.join(lessFilesPath, fileName);
-        let cssPath = lessPath.replace(/less/g, "css");
-        execSync(`lessc ${lessPath} ${cssPath}`);
-      });
-  } catch (error) {
-    console.log(error);
-  }
-}
-
+const config = fse.readJSONSync("./config.json");
+const pugRootPath = "/template/pages";
+let pagesPugFilePathArr = await getPagesPugFilePathArr();
 //根据后缀名读取文件夹里的所有文件内容
 async function readAllFilesValueInFolder(folderPath, fileExtArr) {
   let obj = {};
@@ -65,56 +37,164 @@ async function readAllFilesValueInFolder(folderPath, fileExtArr) {
 }
 
 /**
- * 将处理完的pug文件拷到temp文件夹然后编译pug文件输出到output文件夹下
- * @param {页面所需数据} data
+ * 将pages下的模版编译为生成函数
+ * @param pugPath /template/pages下的pug模版路径
+ * @returns
  */
-async function createPages(data) {
-  try {
-    let pugFilePath = path.join(__dirname, "/template/");
-    let obj = await readAllFilesValueInFolder(pugFilePath, [".pug"]);
-    await compileLessToCss();
-    for (const key in obj) {
-      obj[key] = beforePugFileConversion(obj[key], key);
-      let newKey = key.replace("template", "temp");
-      obj[newKey] = obj[key];
-      delete obj[key];
-      await fse.writeFile(newKey, obj[newKey]);
+async function compilePagesPugToFn(pugPath) {
+  let basedir = path.join(__dirname, "/template");
+  let fnRootPath = path.join(__dirname, "/pagesPugFn");
+  let fn;
+  if (pugPath) {
+    if (!fse.pathExistsSync(path.join(basedir, "/pages", pugPath))) {
+      console.log("路径不存在! 注意路径前面会自动拼接/template/pages!");
+      return Promise.reject(
+        "路径不存在! 注意路径前面会自动拼接/template/pages"
+      );
     }
-    let proList = [];
-    ["css", "img", "js"].forEach(async (str) => {
-      let targetFolderPath = path.join(__dirname, "/temp", str);
-      let targetFolderPath2 = path.join(__dirname, "/output", str);
-      let sourceFolderPath = path.join(__dirname, "/assets", str);
-      if (str !== "img") {
-        proList.push(
-          new Promise(async (resolve, reject) => {
-            await fse.copy(sourceFolderPath, targetFolderPath);
-            resolve();
-          })
-        );
+    fn = pug.compileFile(path.join(basedir, "/pages", pugPath), {
+      basedir,
+      filters: {
+        less: async function (text) {
+          text = (await less.render(text)).css;
+          return text;
+        }
       }
-      await fse.copy(sourceFolderPath, targetFolderPath2);
+    });
+    let toPath = path.join(fnRootPath, pugPath.replace(".pug", ".js"));
+    fse.ensureFileSync(toPath);
+    await fse.writeFile(toPath, "return " + fn.toString());
+  } else {
+    let proList = [];
+    pagesPugFilePathArr.forEach((fileName) => {
+      proList.push(
+        new Promise(async (resolve, reject) => {
+          const filePath = path.join(__dirname, pugRootPath, fileName);
+          fn = pug.compileFile(filePath, {
+            basedir,
+            filters: {
+              less: async function (text) {
+                text = (await less.render(text)).css;
+                return text;
+              }
+            }
+          });
+          let toPath = path.join(fnRootPath, fileName.replace(".pug", ".js"));
+          fse.ensureFileSync(toPath);
+          await fse.writeFile(toPath, "return " + fn.toString());
+          resolve();
+        })
+      );
     });
     await Promise.all(proList);
-    await fse.remove(path.join(__dirname, "/output/pages"));
-    Object.keys(obj).forEach(async (key) => {
-      if (key.includes("pages")) {
-        // console.log(data, key.slice(key.indexOf("pages")));
-        const basedir = path.join(__dirname, "/temp");
-        let html = pug.compileFile(key, { basedir })(data);
-        let outputPath = key
-          .replace(/temp/g, "output")
-          .replace(/\.pug/g, ".html");
-        await fse.ensureFile(outputPath);
-        await fse.writeFile(outputPath, html);
-      }
-    });
-  } catch (error) {
-    console.log(error);
   }
 }
 
+/**
+ * 向getData.js中写入获取数据函数
+ */
+async function generateGetDataFn() {
+  const getDataFile = await fse.readFile("./getData.js");
+  pagesPugFilePathArr.forEach(async (fileName) => {
+    let funName;
+    if (process.platform == "linux") {
+      funName = "get_" + fileName.split("/").join("_").slice(0, -4) + "_data";
+    } else {
+      funName = "get_" + fileName.split("\\").join("_").slice(0, -4) + "_data";
+    }
+    if (!getDataFile.includes(funName)) {
+      let fun;
+      if (config.getDataFnTemplate && config.getDataFnTemplate.length > 0) {
+        fun = `export async function ${funName}${config.getDataFnTemplate}\n`;
+      } else {
+        fun = `export async function ${funName}(language) {\n let data = [{page_name:''}] || {page_name:''} || null \n return data \n}\n`;
+      }
+      await fse.appendFile("./getData.js", fun);
+    }
+  });
+}
+
+/**
+ * 调用getData中的函数获取模版数据 传入pugPath则只获取这一个模版数据否则全部获取
+ * @param pugPath /template/pages下的pug模版路径
+ */
+async function fetchDataToJsonFile(pugPath) {
+  const getData = await import("./getData.js");
+  const JsonRootPath = path.join(__dirname, "/devJsonData");
+  const languageList = config.languageList;
+  languageList.forEach((language) => {
+    pagesPugFilePathArr.forEach(async (fileName) => {
+      if (pugPath) {
+        let fileStr;
+        if (process.platform == "linux") {
+          fileStr = fileName.split("/").join("");
+        } else {
+          fileStr = fileName.split("\\").join("");
+        }
+        if (fileStr !== pugPath.split("/").join("")) {
+          return Promise.resolve();
+        }
+      }
+      let funName;
+      let jsonFilePath;
+      if (process.platform == "linux") {
+        funName = "get_" + fileName.split("/").join("_").slice(0, -4) + "_data";
+        jsonFilePath = fileName.slice(0, -4).split("/");
+      } else {
+        funName =
+          "get_" + fileName.split("\\").join("_").slice(0, -4) + "_data";
+        jsonFilePath = fileName.slice(0, -4).split("\\");
+      }
+      if (!getData[funName] || typeof getData[funName] !== "function") {
+        console.log(funName, "获取数据函数不存在!");
+        return Promise.reject(funName + "获取数据函数不存在!");
+      }
+      let data = getData[funName](language);
+      let pro = [];
+      if (Array.isArray(data)) {
+        data.forEach(async (item, index) => {
+          if (item.page_name && item.page_name.length > 0) {
+            jsonFilePath =
+              path.join(
+                JsonRootPath,
+                language,
+                ...jsonFilePath.slice(0, -1),
+                item.page_name
+              ) + ".json";
+          } else {
+            jsonFilePath =
+              path.join(JsonRootPath, language, ...jsonFilePath) +
+              "_" +
+              index +
+              ".json";
+          }
+          pro.push(fse.outputJson(jsonFilePath, data));
+        });
+        await Promise.all(pro);
+      } else if (data && typeof data === "object") {
+        if (data.page_name && data.page_name.length > 0) {
+          jsonFilePath =
+            path.join(
+              JsonRootPath,
+              language,
+              ...jsonFilePath.slice(0, -1),
+              item.page_name
+            ) + ".json";
+        } else {
+          jsonFilePath =
+            path.join(JsonRootPath, language, ...jsonFilePath) + ".json";
+        }
+        await fse.outputJson(jsonFilePath, data);
+      } else {
+        console.log(funName, "未返回数据将不会生成json文件");
+      }
+    });
+  });
+}
+
 async function main() {
-  createPages(allDataObj);
+  compilePagesPugToFn();
+  await generateGetDataFn();
+  fetchDataToJsonFile();
 }
 main();

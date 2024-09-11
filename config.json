@@ -1,11 +1,10 @@
 {
     "devServer": {
-        "port": 3000
+        "port": 3001
     },
-    "siteList": [
-        "us"
-    ],
-    "pageCommonData":{
-        
-    }
+    "getDataFnTemplate": "(language) {\n let data = [{page_name:''}] || {page_name:''} || null \n return data \n}",
+    "languageList": [
+        "us",
+        "br"
+    ]
 }

@@ -2,40 +2,90 @@ import express from "express";
 import ip from "ip";
 import fse from "fs-extra";
 import path from "path";
-import { generateJsonDataFile } from "./getPageData.js";
 import _ from "lodash";
+import less from "less";
+
+import { getPagesPugFnToGlobal } from "./utils.js";
 
 const __dirname = path.resolve();
 const config = await fse.readJson("./config.json");
-await generateJsonDataFile();
 const app = express();
 
-app.set("views", path.join(__dirname, "temp", "pages"));
+app.set("views", "./template/pages");
 app.set("view engine", "pug");
-app.locals.basedir = path.join(__dirname, "temp");
-
-app.use("/css", express.static("./assets/css"));
-app.use("/js", express.static("./assets/js"));
-app.use("/img", express.static("./assets/img"));
-app.use(express.static("./assets/rootPath"));
-
+app.use("/static", express.static("./template/static"));
+app.use(express.static("./public"));
+app.locals.basedir = path.join(__dirname, "/template");
+await getPagesPugFnToGlobal();
 app.get("*", async (req, res) => {
-  let template = req.path.slice(1).replace(".html", ".pug");
-  let JsonPath = path.join(__dirname, "/devJsonData");
-
-  if (req.path == "/") {
-    template = "index.pug";
+  try {
+    let key;
+    let lastPath = req.path;
+    if (lastPath == "/") {
+      key = "index";
+      lastPath = "/index";
+    } else {
+      if (lastPath.endsWith(".html")) {
+        lastPath = lastPath.slice(0, -5);
+        key = lastPath.replaceAll("/", "");
+      } else {
+        key = lastPath.replaceAll("/", "");
+      }
+    }
+    let firstPath = req.path.split("/")[1];
+    lastPath = config.languageList.includes(firstPath)
+      ? lastPath
+      : "/us" + lastPath;
+    let pugFn = global._pugFnMap.get(key);
+    let jsonDataPath = path.join(__dirname, "devJsonData", lastPath) + ".json";
+    let data;
+    if (fse.pathExistsSync(jsonDataPath)) {
+      data = await fse.readJSON(jsonDataPath);
+    } else {
+      console.log(jsonDataPath, "不存在此json文件页面data数据将为null");
+      jsonDataPath = null;
+    }
+    let html;
+    // if (pugFn) {
+    //   html = pugFn({ data });
+    //   console.log(
+    //     `请求路径:${req.path}  模版函数路径:${path.join(
+    //       __dirname,
+    //       "/pagesPugFn",
+    //       req.path.replace(".html", "") == "/"
+    //         ? "index"
+    //         : req.path.replace(".html", "")
+    //     )}.js  数据JSON文件路径:${jsonDataPath}`
+    //   );
+    // } else {
+    //   html = `<h1>${path.join(
+    //     __dirname,
+    //     "/template/pages",
+    //     req.path.replace(".html", "")
+    //   )}.pug 的模版函数不存在!!!</h1>`;
+    //   console.log(
+    //     `${path.join(
+    //       __dirname,
+    //       "/template/pages",
+    //       req.path.replace(".html", "")
+    //     )}.pug 的模版函数不存在!!!`
+    //   );
+    // }
+    // res.send(html);
+    res.render(
+      "index.pug",
+      _.merge(data, {
+        filters: {
+          less: async function (text) {
+            text = (await less.render(text)).css;
+            return text;
+          }
+        }
+      })
+    );
+  } catch (error) {
+    console.log(error);
   }
-  if (!fse.pathExistsSync(path.join(__dirname, "temp", "pages", template))) {
-    template = "index.pug";
-  }
-  let pathStr = req.path.split("/")[1];
-  let site = config.siteList.includes(pathStr) ? pathStr : "us";
-
-  let jsonData = await fse.readJSON(
-    path.join(JsonPath, site, template.replace(".pug", ".json"))
-  );
-  res.render(template, _.merge(config.common));
 });
 
 app.listen(config.devServer.port);

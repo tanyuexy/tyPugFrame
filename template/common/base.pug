@@ -1,0 +1,27 @@
+doctype html
+html(v=`1.0.6`)
+  mixin imgPlus(src)
+    - src = "https://resource.smartreviewstips.com/" + src
+    img.cs-lazy(data-load= src, alt="") 
+    .loading-img
+        .loading-inner
+          .dots-container
+            .dot
+            .dot
+            .dot
+            .dot
+            .dot  
+  mixin searchComp()
+    .searchComp
+        img(src="/static/logo3.svg", alt="")
+        p Explore, rate and share together! 
+        p We provide reliable reviews to help consumers choose smarter.
+        .searchComp-input.box-shadow-20
+            input(type="search" placeholder="Search for any reviews").searchInputComp
+            div
+                img(src="/static/search.svg", alt="")     
+  head
+    block head
+  body
+    .content-body
+        block main

@@ -1,15 +1,13 @@
 {
     "devServer": {
-        "port": 3001
+        "port": 3003
     },
     "getDataFnTemplate": "(language) {\n let data = [{page_name:''}] || {page_name:''} || null \n return data \n}",
     "languageList": [
         "us",
         "br"
     ],
-    "commonData": {
-        "a": 1
-    },
+    "commonData": {},
     "fnOutput": "./dist",
     "staticOutput": "./staticDist"
 }

@@ -1,6 +1,7 @@
 import fse from "fs-extra";
 import path from "path";
 import less from "less";
+import tcpPortUsed from "tcp-port-used";
 
 const __dirname = path.resolve();
 
@@ -34,4 +35,14 @@ export async function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+export async function getIdleProt(port, Ip) {
+  while (1) {
+    if (!(await tcpPortUsed.check(port, Ip))) {
+      break;
+    }
+    port++;
+  }
+  return port;
 }

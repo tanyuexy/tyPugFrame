@@ -3,28 +3,45 @@ import ip from "ip";
 import fse from "fs-extra";
 import path from "path";
 import _ from "lodash";
-import { getCompilePugFilter } from "./utils.js";
+import { getCompilePugFilter, getIdleProt } from "./utils.js";
 import { get_common_data } from "./getData.js";
+import http from "http";
+import WebSocket, { WebSocketServer } from "ws";
 
 const __dirname = path.resolve();
 const config = await fse.readJson("./config.json");
-const app = express();
 const pagsTemplatePath = path.join(__dirname, "/template/pages");
+const localIp = ip.address();
+const port = await getIdleProt(config.devServer.port, localIp);
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
 
 app.set("views", pagsTemplatePath);
 app.set("view engine", "pug");
 app.use("/static", express.static("./template/static"));
 app.use(express.static("./public"));
 app.locals.basedir = path.join(__dirname, "/template");
+wss.on("connection", function connection(ws) {
+  console.log("刷新网页");
+});
+
+app.get("/_refresh", (req, res) => {
+  wss.clients.forEach(function each(client) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send("refresh");
+    }
+  });
+  res.send("刷新成功");
+});
+
 app.get("*", async (req, res) => {
   try {
     let lastPath = req.path;
-    if (lastPath == "/") {
-      lastPath = "/index";
+    if (lastPath.endsWith(".html")) {
+      lastPath = lastPath.slice(0, -5);
     } else {
-      if (lastPath.endsWith(".html")) {
-        lastPath = lastPath.slice(0, -5);
-      }
+      lastPath = path.join(lastPath, "index");
     }
     let firstPath = req.path.split("/")[1];
     let language = config.languageList.includes(firstPath) ? firstPath : "us";
@@ -52,7 +69,14 @@ app.get("*", async (req, res) => {
         _.merge(
           {
             data,
-            common: _.merge(commonData, config.commonData)
+            common: _.merge(commonData, config.commonData, {
+              _refreshScript: `const ws = new WebSocket('ws://${localIp}:${port}');ws.onmessage = function(event) {
+                  if (event.data === 'refresh') {
+                      console.log('Refreshing page...');
+                      location.reload();
+                  }
+              }`
+            })
           },
           { filters: getCompilePugFilter() }
         )
@@ -67,6 +91,5 @@ app.get("*", async (req, res) => {
   }
 });
 
-app.listen(config.devServer.port);
-const localIp = ip.address();
-console.log("Listening: ", localIp + ":" + config.devServer.port);
+console.log("Listening:", `http://${localIp}:${port}`);
+server.listen(port);

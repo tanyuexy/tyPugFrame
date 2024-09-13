@@ -6,5 +6,10 @@
     "languageList": [
         "us",
         "br"
-    ]
+    ],
+    "commonData": {
+        "a": 1
+    },
+    "fnOutput": "./dist",
+    "staticOutput": "./staticDist"
 }

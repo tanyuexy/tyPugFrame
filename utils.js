@@ -1,34 +1,37 @@
 import fse from "fs-extra";
 import path from "path";
+import less from "less";
+
 const __dirname = path.resolve();
 
-export async function getPagesPugFnToGlobal() {
-  let pugFnMap = new Map();
-  global._pugFnMap = pugFnMap;
-  let pagesPugFilePathArr = await getPagesPugFilePathArr();
-  let pro = [];
-  pagesPugFilePathArr.forEach(async (fileName) => {
-    pro.push(
-      new Promise(async (resolve, reject) => {
-        let key = fileName.slice(0, -4);
-        let fn = await fse.readFile(
-          path.join(__dirname, "/pagesPugFn", key) + ".js"
-        );
-        pugFnMap.set(
-          key.replace("/", "").replace("\\", ""),
-          Function(String(fn))()
-        );
-        resolve();
-      })
-    );
-  });
-  await Promise.all(pro);
-}
-
+let pagesPugFilePathArr;
 export async function getPagesPugFilePathArr() {
-  return (
+  pagesPugFilePathArr = (
     await fse.readdir(path.join(__dirname, "/template/pages"), {
       recursive: true
     })
   ).filter((fileName) => fileName.endsWith(".pug"));
+  return pagesPugFilePathArr;
+}
+
+export function getCompilePugFilter() {
+  return {
+    less: async function (text) {
+      text = (await less.render(text)).css;
+      return text;
+    }
+  };
+}
+
+export function pathIsSame(path1, path2) {
+  return (
+    path1.replaceAll("/", "").replaceAll("\\", "") ===
+    path2.replaceAll("/", "").replaceAll("\\", "")
+  );
+}
+
+export async function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }

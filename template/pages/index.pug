@@ -1,110 +1,17 @@
 extends /common/base.pug
 block head
     include:less /static/less/pages/index.less
+    include /static/js/1.js
 block main
   div.index
-        .banner1
-            .banner1-left 
-                h1 Smart Decisions 
-                    p 
-                        span Begin with 
-                    p 
-                        span.imgLowerLine Smart 
-                        span Reviews!
-                p.desc-text "Explore a world of perspectives and insights on our review platform, where diverse evaluations across all realms converge to enlighten and empower your decisions."
-                .banner1-search.box-shadow-20
-                    div 
-                        input(type="search" placeholder="Search for any reviews").searchInput
-                        img(src="/static/search.svg", alt="").icon-18
-                    p.but-text 
-            .banner1-right
-                //- img(src="/static/banner1.png", alt="")
-        .banner2
-            .banner2-left
-                p.cat-text #{data.top.posts[0].cat}
-                p.title #{data.top.posts[0].title}
-                p.desc-text.three-lines #{data.top.posts[0].quote.slice(0).slice(0,-1)}
-                a(style="margin-top:10px" href=`/detail/${data.top.posts[0].page_name}.html`)  
-                    span.title-2.ViewDetailsHover View Details
-                    img.ViewDetailsHover(src="/static/Group 297.svg", alt="").icon-18 
-            .banner2-right 
-                .left 
-                    div.box-shadow-40 
-                      img(src="/static/Automotive Products.svg", alt="")
-                      p.title-2  #{data.cats[0]} 
-                    div.box-shadow-40 
-                      img(src="/static/Consumer Electronics.svg", alt="")
-                      p.title-2  #{data.cats[2]} 
-                .right       
-                    div.box-shadow-40 
-                      img(src="/static/Home Appliances.svg", alt="")
-                      p.title-2  #{data.cats[1]}
-                    div.box-shadow-40 
-                      img(src="/static/Household Goods.svg", alt="")
-                      p.title-2  #{data.cats[3]}
-        .BuyingGuides
-            h1.title #{data.guides.title}
-                .chgBut
-                    img(src="/static/ArrowRightCircleFill.svg", alt="")
-                    img(src="/static/ArrowRightCircleFill.svg", alt="")
-            p.desc-text #{data.guides.content}
-            .scrollList
-                .imgList 
-                    each item in data.guides.posts
-                        a(href=`/detail/${item.page_name}.html`).imgItem
-                            .top
-                                +imgPlus(item.imgs[0])
-                                .info 
-                                    p.text-line  #{item.title}
-                                    .viewDetailBut 
-                                        span View Details
-                                        img(src="/static/Group 297.svg", alt="").icon-18
-                                    p.two-lines  #{item.quote.slice(1).slice(0,-1)}
-                            .bottom
-                                p #{item.author}
-                                p 
-                                    img(src="/static/star.svg", alt="").icon-21
-                                    span #{item.rating}
-        .SamsungGalaxy
-            .left
-                img(src="/static/Group 31.svg", alt="smartreviews.com")
-            .right 
-                p.cat-text #{data.middle.posts[0].cat}
-                p.title #{data.middle.posts[0].title}
-                .csList 
-                    p
-                        img(src="/static/Opposite.svg", alt="") 
-                        span.desc-text #{data.middle.content.str_arr[0]}
-                    p
-                        img(src="/static/Opposite.svg", alt="") 
-                        span.desc-text #{data.middle.content.str_arr[1]}
-                    p
-                        img(src="/static/Opposite.svg", alt="") 
-                        span.desc-text #{data.middle.content.str_arr[2]}
-                .numInfo
-                    .item
-                        p #{data.middle.content.str_obj[0].value}
-                        p #{data.middle.content.str_obj[0].key}
-                    .item
-                        p #{data.middle.content.str_obj[1].value}
-                        p #{data.middle.content.str_obj[1].key}
-                    .item
-                        p #{data.middle.content.str_obj[2].value}
-                        p #{data.middle.content.str_obj[2].key}
-                a(href=`${data.middle.posts[0].detail_url}`).toViewDetail 
-                    span.title-2.ViewDetailsHover View Details
-                    img.ViewDetailsHover(src="/static/Group 297.svg", alt="").icon-18 
-        .aboutMotive
-            .value 
-                .left 
-                    p.cat-text #{data.bottom.posts[0].cat}
-                    p.title #{data.bottom.title}
-                    p.desc-text #{data.bottom.content}
-                .right 
-                    each item in data.bottom.posts
-                        a(href=item.detail_url).item
-                            +imgPlus(item.imgs[0])
-                            span.title-1.text-line #{item.title}
-                            img(src="/static/ArrowRightCircleFill.svg", alt="")
-        +searchComp
-     
+        a #{common.b}
+        b 1111111111111111
+        h1 #{data.a}.about    
+        .about-header
+            h1 About Smart Reviews
+        .about-body.main-text
+            div Smart Reviews is a premier destination for in-depth, unbiased reviews and insights on a wide range of consumer products. Our mission is to empower our readers to make confident and informed purchasing decisions across diverse categories.
+            div Our team of experienced reviewers meticulously evaluates the latest innovations in a variety of product segments, including but not limited to Automotive, Home Appliances, Consumer Electronics, Household Goods, Personal Care, Fashion, and Sports & Outdoors. We utilize advanced assessment methodologies, including multidimensional analysis and real-world user experience narratives, to deliver insights that go beyond the surface-level.  
+            div What truly sets us apart is our commitment to innovation and a forward-thinking approach. We don't simply regurgitate product specifications; instead, we provide our readers with a comprehensive understanding of each product's performance, features, and value proposition. Our reviews not only highlight the strengths of each product but also critically examine their weaknesses, empowering our audience to make well-rounded decisions.
+            div Beyond the traditional product review, Smart Reviews also delves into emerging trends and unique consumer experiences. We provide detailed user guides, comparative analyses, and expert recommendations to ensure our readers have all the necessary tools to navigate the ever-evolving consumer landscape.
+            div Whether you're in the market for a game-changing kitchen appliance, the perfect smartphone to suit your lifestyle, or the most stylish and functional home decor, Smart Reviews is your trusted companion. Visit us today and let our cutting-edge insights guide your next purchase.

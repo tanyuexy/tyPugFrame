@@ -5,9 +5,12 @@
     "getDataFnTemplate": "(language) {\n let data = [{page_name:''}] || {page_name:''} || null \n return data \n}",
     "languageList": [
         "us",
-        "br"
+        "br",
+        "vn"
     ],
     "commonData": {},
-    "fnOutput": "./dist",
-    "staticOutput": "./staticDist"
+    "fnOutput": "dist",
+    "staticOutput": "staticDist",
+    "isMatchLanguage": true,
+    "isMatchDevice": true
 }

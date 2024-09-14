@@ -13,6 +13,8 @@ const config = await fse.readJson("./config.json");
 const pagsTemplatePath = path.join(__dirname, "/template/pages");
 const localIp = ip.address();
 const port = await getIdleProt(config.devServer.port, localIp);
+process.env._port = port;
+process.env._localIp = localIp;
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
@@ -43,14 +45,22 @@ app.get("*", async (req, res) => {
     } else {
       lastPath = path.join(lastPath, "index");
     }
-    let firstPath = req.path.split("/")[1];
-    let language = config.languageList.includes(firstPath) ? firstPath : "us";
-    lastPath = lastPath
-      .split("/")
-      .filter((item) => item !== language)
-      .join("/");
+    let language = config.languageList[0];
+    let jsonLastPath = lastPath;
+    if (config.isMatchLanguage) {
+      jsonLastPath = jsonLastPath
+        .split("\\")
+        .filter((item) => !config.languageList.includes(item))
+        .join("\\");
+    }
+    if (config.isMatchDevice) {
+      jsonLastPath = jsonLastPath
+        .split("\\")
+        .filter((item) => !["pc", "mobile", "ipad"].includes(item))
+        .join("\\");
+    }
     let jsonDataPath =
-      path.join(__dirname, "jsonData", language, lastPath) + ".json";
+      path.join(__dirname, "jsonData", language, jsonLastPath) + ".json";
     let data;
     if (fse.pathExistsSync(jsonDataPath)) {
       data = await fse.readJSON(jsonDataPath);
@@ -64,22 +74,26 @@ app.get("*", async (req, res) => {
         `请求路径:${req.path}  模版路径:${pugPath}  数据JSON文件路径:${jsonDataPath}`
       );
       const commonData = await get_common_data(language);
+      let _refreshScript = `<script>const ws=new WebSocket('ws://${localIp}:${port}');ws.onmessage=function(event){if(event.data==='refresh'){console.log('Refreshing page...');location.reload()}}</script>`;
       res.render(
         pugPath,
         _.merge(
           {
             data,
             common: _.merge(commonData, config.commonData, {
-              _refreshScript: `const ws = new WebSocket('ws://${localIp}:${port}');ws.onmessage = function(event) {
-                  if (event.data === 'refresh') {
-                      console.log('Refreshing page...');
-                      location.reload();
-                  }
-              }`
+              _refreshScript
             })
           },
           { filters: getCompilePugFilter() }
-        )
+        ),
+        function (err, html) {
+          if (err) {
+            console.log(err);
+            res.send(_refreshScript + err);
+          } else {
+            res.send(_refreshScript + html);
+          }
+        }
       );
     } else {
       let html = `<h1>${pugPath}的模版函数不存在!</h1>`;

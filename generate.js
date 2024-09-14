@@ -5,13 +5,15 @@ import {
   getPagesPugFilePathArr,
   getCompilePugFilter,
   pathIsSame,
-  sleep
+  sleep,
+  pagesPathFilter
 } from "./utils.js";
 import _ from "lodash";
 
 const __dirname = path.resolve();
 const config = fse.readJSONSync("./config.json");
 const pugRootPath = path.join(__dirname, "/template/pages");
+const pathSymbol = process.platform == "linux" ? "/" : "\\";
 //根据后缀名读取文件夹里的所有文件内容
 async function readAllFilesValueInFolder(folderPath, fileExtArr) {
   let obj = {};
@@ -48,7 +50,8 @@ export async function compilePagesPugToFn(pugPath) {
   let pagesPugFilePathArr = await getPagesPugFilePathArr();
   let fnRootPath = path.join(__dirname, "/pagesPugFn");
   let fnStr;
-  let lastPugFnStr = "";
+  //写入pug编译需要函数
+  let lastPugFnStr = fse.readFileSync("./pugRelyFn.js");
   let proList = [];
   pagesPugFilePathArr.forEach((fileName, index) => {
     if (pugPath) {
@@ -65,12 +68,7 @@ export async function compilePagesPugToFn(pugPath) {
     proList.push(
       new Promise(async (resolve, reject) => {
         const filePath = path.join(pugRootPath, fileName);
-        let funName;
-        if (process.platform == "linux") {
-          funName = "compile_" + fileName.split("/").join("_").slice(0, -4);
-        } else {
-          funName = "compile_" + fileName.split("\\").join("_").slice(0, -4);
-        }
+        let funName = fileName.split(pathSymbol).join("_").slice(0, -4);
         let pugValue = await fse.readFile(filePath);
         fnStr = pug.compileClient(pugValue, {
           basedir: path.join(__dirname, "/template"),
@@ -82,13 +80,9 @@ export async function compilePagesPugToFn(pugPath) {
           `function ${funName}\(locals\)`,
           `export function ${funName}\(locals\)`
         );
-        if (index == 0) {
-          lastPugFnStr += fnStr;
-        } else {
-          lastPugFnStr += fnStr.slice(
-            fnStr.indexOf(`export function ${funName}\(locals\)`)
-          );
-        }
+        lastPugFnStr += fnStr.slice(
+          fnStr.indexOf(`export function ${funName}\(locals\)`)
+        );
         resolve();
       })
     );
@@ -104,19 +98,15 @@ export async function compilePagesPugToFn(pugPath) {
  */
 export async function generateGetDataFn() {
   const getDataFile = await fse.readFile("./getData.js");
-  let pagesPugFilePathArr = await getPagesPugFilePathArr();
+  let pagesPugFilePathArr = await getPagesPugFilePathArr(true);
 
   if (!getDataFile.includes("get_common_data")) {
     let fun = `export async function get_common_data(language) {\n return {} \n}\n`;
     await fse.appendFile("./getData.js", fun);
   }
   pagesPugFilePathArr.forEach(async (fileName) => {
-    let funName;
-    if (process.platform == "linux") {
-      funName = "get_" + fileName.split("/").join("_").slice(0, -4) + "_data";
-    } else {
-      funName = "get_" + fileName.split("\\").join("_").slice(0, -4) + "_data";
-    }
+    let funName =
+      "get_" + fileName.split(pathSymbol).join("_").slice(0, -4) + "_data";
     if (!getDataFile.includes(funName)) {
       let fun;
       if (config.getDataFnTemplate && config.getDataFnTemplate.length > 0) {
@@ -145,8 +135,13 @@ export async function fetchDataToJsonFile(args) {
       await fse.remove(JsonRootPath);
     }
     const getData = await import("./getData.js");
-    let pagesPugFilePathArr = await getPagesPugFilePathArr();
+    let arrPagesPugFilePathArr = await getPagesPugFilePathArr();
+    let pagesPugFilePathArr = await getPagesPugFilePathArr(true);
+    let filterFinishArr = arrPagesPugFilePathArr.filter(
+      (item) => !pagesPugFilePathArr.includes(item)
+    );
     const languageList = config.languageList;
+
     languageList.forEach(async (language) => {
       if (langArr && langArr.length > 0) {
         if (!langArr.includes(language)) {
@@ -160,29 +155,15 @@ export async function fetchDataToJsonFile(args) {
             return;
           }
         }
-        let funName;
-        let jsonFilePath;
-        if (process.platform == "linux") {
-          let removepathArr = fileName.split("/").slice(0, -1);
-          if (removepathArr.length > 0) {
-            await fse.remove(
-              path.join(JsonRootPath, language, ...removepathArr)
-            );
-          }
-          funName =
-            "get_" + fileName.split("/").join("_").slice(0, -4) + "_data";
-          jsonFilePath = fileName.slice(0, -4).split("/");
-        } else {
-          let removepathArr = fileName.split("\\").slice(0, -1);
-          if (removepathArr.length > 0) {
-            await fse.remove(
-              path.join(JsonRootPath, language, ...removepathArr)
-            );
-          }
-          funName =
-            "get_" + fileName.split("\\").join("_").slice(0, -4) + "_data";
-          jsonFilePath = fileName.slice(0, -4).split("\\");
+
+        let removepathArr = fileName.split(pathSymbol).slice(0, -1);
+        if (removepathArr.length > 0) {
+          await fse.remove(path.join(JsonRootPath, language, ...removepathArr));
         }
+        let funName =
+          "get_" + fileName.split(pathSymbol).join("_").slice(0, -4) + "_data";
+        let jsonFilePath = fileName.slice(0, -4).split(pathSymbol);
+
         if (!getData[funName] || typeof getData[funName] !== "function") {
           console.log(funName, "获取数据函数不存在!");
           return Promise.reject(funName + "获取数据函数不存在!");
@@ -196,6 +177,7 @@ export async function fetchDataToJsonFile(args) {
         let starTime = Date.now();
         let data = await getData[funName](language);
         console.log(
+          language,
           funName,
           "数据获取完成执行时间为:",
           (Date.now() - starTime) / 1000,
@@ -203,7 +185,7 @@ export async function fetchDataToJsonFile(args) {
         );
         let pro = [];
         starTime = Date.now();
-        console.log(funName, "开始写入json文件");
+        console.log(language, funName, "开始写入json文件");
         if (Array.isArray(data)) {
           data.forEach(async (item, index) => {
             if (typeof item !== "object") {
@@ -227,7 +209,11 @@ export async function fetchDataToJsonFile(args) {
                 ++index +
                 ".json";
             }
-            item._template = fileName;
+            let templateArr = filterFinishArr.filter(
+              (item) => pagesPathFilter(item) === fileName
+            );
+            templateArr.push(fileName);
+            item._template = templateArr;
             pro.push(fse.outputJson(lastJsonFilePath, item));
           });
           await Promise.all(pro);
@@ -244,7 +230,11 @@ export async function fetchDataToJsonFile(args) {
             jsonFilePath =
               path.join(JsonRootPath, language, ...jsonFilePath) + ".json";
           }
-          data._template = fileName;
+          let templateArr = filterFinishArr.filter(
+            (item) => pagesPathFilter(item) === fileName
+          );
+          templateArr.push(fileName);
+          data._template = templateArr;
           await fse.outputJson(jsonFilePath, data);
         } else {
           if (!data) {
@@ -258,6 +248,7 @@ export async function fetchDataToJsonFile(args) {
           }
         }
         console.log(
+          language,
           funName,
           "文件写入完成执行时间为:",
           (Date.now() - starTime) / 1000,
@@ -364,12 +355,7 @@ export async function buildStatic() {
         let pugTemplate = pagesPugFilePathArr.find((pugFileName) => {
           return pathIsSame(pugFileName, data._template);
         });
-        let funName;
-        if (process.platform == "linux") {
-          funName = "compile_" + pugTemplate.split("/").join("_").slice(0, -4);
-        } else {
-          funName = "compile_" + pugTemplate.split("\\").join("_").slice(0, -4);
-        }
+        let funName = pugTemplate.split(pathSymbol).join("_").slice(0, -4);
         let html = PagesPugToFn[funName]({ data, common: commonData });
         let htmlPath = path.join(
           outputPath,

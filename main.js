@@ -8,7 +8,6 @@ import {
   buildStatic
 } from "./generate.js";
 
-// let worker = new Worker("./watchFile.js");
 await generateGetDataFn();
 switch (curCmd) {
   case "getData":
@@ -16,7 +15,8 @@ switch (curCmd) {
     fetchDataToJsonFile(args);
     break;
   case "dev":
-    import("./devServer.js");
+    await import("./devServer.js");
+    new Worker("./watchFile.js");
     break;
   case "compileFn":
     compilePagesPugToFn();

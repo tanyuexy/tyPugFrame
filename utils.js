@@ -4,15 +4,40 @@ import less from "less";
 import tcpPortUsed from "tcp-port-used";
 
 const __dirname = path.resolve();
+const config = fse.readJSONSync("./config.json");
+const pathSymbol = process.platform == "linux" ? "/" : "\\";
 
 let pagesPugFilePathArr;
-export async function getPagesPugFilePathArr() {
+export async function getPagesPugFilePathArr(isFilter) {
   pagesPugFilePathArr = (
     await fse.readdir(path.join(__dirname, "/template/pages"), {
       recursive: true
     })
   ).filter((fileName) => fileName.endsWith(".pug"));
+
+  if (isFilter) {
+    pagesPugFilePathArr = pagesPugFilePathArr.map((fileName) => {
+      return pagesPathFilter(fileName);
+    });
+  }
+  pagesPugFilePathArr = Array.from(new Set(pagesPugFilePathArr));
   return pagesPugFilePathArr;
+}
+
+export function pagesPathFilter(pugPath) {
+  if (config.isMatchLanguage) {
+    pugPath = pugPath
+      .split(pathSymbol)
+      .filter((item) => !config.languageList.includes(item))
+      .join(pathSymbol);
+  }
+  if (config.isMatchDevice) {
+    pugPath = pugPath
+      .split(pathSymbol)
+      .filter((item) => !["pc", "mobile", "ipad"].includes(item))
+      .join(pathSymbol);
+  }
+  return pugPath;
 }
 
 export function getCompilePugFilter() {
@@ -45,4 +70,19 @@ export async function getIdleProt(port, Ip) {
     port++;
   }
   return port;
+}
+
+export function debounce(func, delay) {
+  let timeoutId;
+
+  return function () {
+    const context = this;
+    const args = arguments;
+
+    clearTimeout(timeoutId);
+
+    timeoutId = setTimeout(() => {
+      func.apply(context, args);
+    }, delay);
+  };
 }

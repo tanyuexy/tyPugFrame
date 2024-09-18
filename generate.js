@@ -9,9 +9,9 @@ import {
   pagesPathFilter
 } from "./utils.js";
 import _ from "lodash";
+import { config } from "./config.js";
 
 const __dirname = path.resolve();
-const config = fse.readJSONSync("./config.json");
 const pugRootPath = path.join(__dirname, "/template/pages");
 const pathSymbol = process.platform == "linux" ? "/" : "\\";
 //根据后缀名读取文件夹里的所有文件内容
@@ -275,33 +275,42 @@ export async function buildFn() {
     await fse.remove(outputPath);
     await sleep(0);
     await compilePagesPugToFn();
-    await fse.copy(path.join(__dirname, "pagesPugFn"), outputPath);
-    await fse.copy(path.join(__dirname, "public"), outputPath);
+    await fse.copy(
+      path.join(__dirname, "pagesPugFn"),
+      path.join(outputPath, "pages")
+    );
+    await fse.copy(
+      path.join(__dirname, "public"),
+      path.join(outputPath, "pages")
+    );
     await fse.copy(
       path.join(__dirname, "jsonData"),
       path.join(outputPath, "data")
     );
     const getData = await import("./getData.js");
-    config.languageList.forEach(async (lang) => {
-      let commonData = await getData.get_common_data(lang);
-      let langDataPath = path.join(outputPath, "data", lang);
-      if (!fse.pathExistsSync(langDataPath)) {
-        console.log(
-          `注意配置了${lang}语言但${langDataPath}中没有生成${lang}语言的数据!`
-        );
-      } else {
-        await fse.writeJSON(
-          langDataPath + "/common.json",
-          _.merge(commonData, config.commonData)
-        );
-      }
-    });
-    ["js", "css", "img"].forEach(async (item) => {
-      await fse.copy(
-        path.join(__dirname, "/template/static", item),
-        path.join(outputPath, "/static", item)
+    let totalCommonData = {};
+    let pro = [];
+    config.languageList.forEach((lang) => {
+      pro.push(
+        new Promise(async (resolve, reject) => {
+          let commonData = await getData.get_common_data(lang);
+          totalCommonData[lang] = _.merge(commonData, config.commonData);
+          resolve();
+        })
       );
     });
+    ["js", "css", "img"].forEach(async (item) => {
+      fse.ensureDirSync(path.join(__dirname, "/template/static", item));
+      await fse.copy(
+        path.join(__dirname, "/template/static", item),
+        path.join(outputPath, "pages/static", item)
+      );
+    });
+    await Promise.all(pro);
+    await fse.writeJSON(
+      path.join(outputPath, "pages", "common") + ".json",
+      totalCommonData
+    );
 
     console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");
   } catch (error) {
@@ -324,6 +333,7 @@ export async function buildStatic() {
     await sleep(0);
     await fse.copy(path.join(__dirname, "public"), outputPath);
     ["js", "css", "img"].forEach(async (item) => {
+      fse.ensureDirSync(path.join(__dirname, "/template/static", item));
       await fse.copy(
         path.join(__dirname, "/template/static", item),
         path.join(outputPath, "/static", item)
@@ -331,7 +341,6 @@ export async function buildStatic() {
     });
     await compilePagesPugToFn();
     let PagesPugToFn = await import("./pagesPugFn/index.js");
-    let pagesPugFilePathArr = await getPagesPugFilePathArr();
 
     const getData = await import("./getData.js");
     config.languageList.forEach(async (lang) => {
@@ -349,21 +358,31 @@ export async function buildStatic() {
           recursive: true
         })
       ).filter((fileName) => fileName.endsWith(".json"));
-
       pagesAllJsonFileName.forEach(async (jsonFileName) => {
         let data = await fse.readJSON(path.join(langDataPath, jsonFileName));
-        let pugTemplate = pagesPugFilePathArr.find((pugFileName) => {
-          return pathIsSame(pugFileName, data._template);
+        data._template.forEach(async (pugTemplate) => {
+          let funName = pugTemplate.split(pathSymbol).join("_").slice(0, -4);
+          let html = PagesPugToFn[funName]({ data, common: commonData });
+          if (config.isMatchLanguage) {
+            let onlyLangPath = pugTemplate.split(pathSymbol)[0];
+            if (config.languageList.includes(onlyLangPath)) {
+              if (lang !== onlyLangPath) {
+                return;
+              }
+              pugTemplate = pugTemplate
+                .split(pathSymbol)
+                .slice(1)
+                .join(pathSymbol);
+            }
+          }
+          let htmlPath = path.join(
+            outputPath,
+            lang,
+            pugTemplate.replace(".pug", ".html")
+          );
+          fse.ensureFileSync(htmlPath);
+          await fse.writeFile(htmlPath, html);
         });
-        let funName = pugTemplate.split(pathSymbol).join("_").slice(0, -4);
-        let html = PagesPugToFn[funName]({ data, common: commonData });
-        let htmlPath = path.join(
-          outputPath,
-          lang,
-          pugTemplate.replace(".pug", ".html")
-        );
-        fse.ensureFileSync(htmlPath);
-        await fse.writeFile(htmlPath, html);
       });
     });
     console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");

@@ -1,15 +1,16 @@
 import express from "express";
+import useragent from "express-useragent";
 import ip from "ip";
 import fse from "fs-extra";
 import path from "path";
 import _ from "lodash";
-import { getCompilePugFilter, getIdleProt } from "./utils.js";
+import { getCompilePugFilter, pagesPathFilter, getIdleProt } from "./utils.js";
 import { get_common_data } from "./getData.js";
 import http from "http";
 import WebSocket, { WebSocketServer } from "ws";
+import { config } from "./config.js";
 
 const __dirname = path.resolve();
-const config = await fse.readJson("./config.json");
 const pagsTemplatePath = path.join(__dirname, "/template/pages");
 const localIp = ip.address();
 const port = await getIdleProt(config.devServer.port, localIp);
@@ -19,6 +20,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+app.use(useragent.express());
 app.set("views", pagsTemplatePath);
 app.set("view engine", "pug");
 app.use("/static", express.static("./template/static"));
@@ -39,28 +41,25 @@ app.get("/_refresh", (req, res) => {
 
 app.get("*", async (req, res) => {
   try {
-    let lastPath = req.path;
+    let useragent = req.useragent;
+    let device;
+    if (useragent.isDesktop) {
+      device = "pc";
+    } else if (useragent.isiPad) {
+      //开发者工具中仅ipad mini会被认为是ipad
+      device = "ipad";
+    } else if (useragent.isMobile) {
+      device = "mobile";
+    }
+    let lastPath = pagesPathFilter(req.path);
     if (lastPath.endsWith(".html")) {
       lastPath = lastPath.slice(0, -5);
     } else {
       lastPath = path.join(lastPath, "index");
     }
     let language = config.languageList[0];
-    let jsonLastPath = lastPath;
-    if (config.isMatchLanguage) {
-      jsonLastPath = jsonLastPath
-        .split("\\")
-        .filter((item) => !config.languageList.includes(item))
-        .join("\\");
-    }
-    if (config.isMatchDevice) {
-      jsonLastPath = jsonLastPath
-        .split("\\")
-        .filter((item) => !["pc", "mobile", "ipad"].includes(item))
-        .join("\\");
-    }
     let jsonDataPath =
-      path.join(__dirname, "jsonData", language, jsonLastPath) + ".json";
+      path.join(__dirname, "jsonData", language, lastPath) + ".json";
     let data;
     if (fse.pathExistsSync(jsonDataPath)) {
       data = await fse.readJSON(jsonDataPath);
@@ -68,7 +67,30 @@ app.get("*", async (req, res) => {
       console.log(jsonDataPath, "不存在此json文件页面data数据将为null");
       jsonDataPath = null;
     }
-    let pugPath = path.join(pagsTemplatePath, lastPath) + ".pug";
+
+    let languagePath = "";
+    if (config.isMatchLanguage) {
+      languagePath = language;
+    }
+    let devicePath = "";
+    if (config.isMatchDevice) {
+      devicePath = device;
+    }
+    let otherPath = [
+      languagePath + "/" + devicePath,
+      languagePath,
+      devicePath,
+      ""
+    ];
+    let pugPath;
+    for (let index = 0; index < otherPath.length; index++) {
+      const element = otherPath[index];
+      pugPath = path.join(pagsTemplatePath, element, lastPath) + ".pug";
+      if (fse.pathExistsSync(pugPath)) {
+        break;
+      }
+    }
+
     if (fse.pathExistsSync(pugPath)) {
       console.log(
         `请求路径:${req.path}  模版路径:${pugPath}  数据JSON文件路径:${jsonDataPath}`
@@ -105,5 +127,10 @@ app.get("*", async (req, res) => {
   }
 });
 
-console.log("Listening:", `http://${localIp}:${port}`);
+console.log(
+  "Listening:",
+  `http://${localIp}:${port}`,
+  "语言为:",
+  config.languageList[0]
+);
 server.listen(port);

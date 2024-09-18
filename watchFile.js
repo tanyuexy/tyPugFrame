@@ -4,8 +4,7 @@ import path from "path";
 import { exec } from "child_process";
 import { pathIsSame, debounce } from "./utils.js";
 import { generateGetDataFn } from "./generate.js";
-
-let config = fse.readJSONSync("./config.json");
+import { config } from "./config.js";
 const __dirname = path.resolve();
 
 /**

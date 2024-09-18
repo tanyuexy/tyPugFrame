@@ -2,14 +2,13 @@ import fse from "fs-extra";
 import path from "path";
 import less from "less";
 import tcpPortUsed from "tcp-port-used";
+import { config } from "./config.js";
 
 const __dirname = path.resolve();
-const config = fse.readJSONSync("./config.json");
 const pathSymbol = process.platform == "linux" ? "/" : "\\";
 
-let pagesPugFilePathArr;
 export async function getPagesPugFilePathArr(isFilter) {
-  pagesPugFilePathArr = (
+  let pagesPugFilePathArr = (
     await fse.readdir(path.join(__dirname, "/template/pages"), {
       recursive: true
     })

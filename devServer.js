@@ -12,6 +12,8 @@ import { config } from "./config.js";
 
 const __dirname = path.resolve();
 const pagsTemplatePath = path.join(__dirname, "/template/pages");
+const pathSymbol = process.platform == "linux" ? "/" : "\\";
+
 const localIp = ip.address();
 const port = await getIdleProt(config.devServer.port, localIp);
 process.env._port = port;
@@ -85,6 +87,9 @@ app.get("*", async (req, res) => {
     let pugPath;
     for (let index = 0; index < otherPath.length; index++) {
       const element = otherPath[index];
+      if (data) {
+        lastPath = data._template[0].replace(".pug", "");
+      }
       pugPath = path.join(pagsTemplatePath, element, lastPath) + ".pug";
       if (fse.pathExistsSync(pugPath)) {
         break;

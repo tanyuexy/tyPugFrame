@@ -3,11 +3,11 @@ export const config = {
     port: 3003
   },
   getDataFnTemplate:
-    "(language) {\n let data = [{page_name:''}] || {page_name:''} || null \n return data \n}",
-  languageList: ["us", "br", "jp", "vn"],
+    "(language) {\n let data = {page_name:''} || [{page_name:''}] || null \n return data \n}",
+  languageList: ["us", "jp"],
   commonData: {},
-  fnOutput: "dist",
-  staticOutput: "staticDist",
+  fnOutput: "topziz_newFn",
+  staticOutput: "topziz_new",
   isMatchLanguage: true,
   isMatchDevice: true
   //   pagesMapTable: [

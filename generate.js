@@ -47,50 +47,54 @@ async function readAllFilesValueInFolder(folderPath, fileExtArr) {
  * @returns
  */
 export async function compilePagesPugToFn(pugPath) {
-  let pagesPugFilePathArr = await getPagesPugFilePathArr();
-  let fnRootPath = path.join(__dirname, "/pagesPugFn");
-  let fnStr;
-  //写入pug编译需要函数
-  let lastPugFnStr = fse.readFileSync("./pugRelyFn.js");
-  let proList = [];
-  pagesPugFilePathArr.forEach((fileName, index) => {
-    if (pugPath) {
-      if (!fse.pathExistsSync(path.join(pugRootPath, pugPath))) {
-        console.log("路径不存在! 注意路径前面会自动拼接/template/pages!");
-        return Promise.reject(
-          "路径不存在! 注意路径前面会自动拼接/template/pages"
-        );
+  try {
+    let pagesPugFilePathArr = await getPagesPugFilePathArr();
+    let fnRootPath = path.join(__dirname, "/pagesPugFn");
+    let fnStr;
+    //写入pug编译需要函数
+    let lastPugFnStr = fse.readFileSync("./pugRelyFn.js");
+    let proList = [];
+    pagesPugFilePathArr.forEach((fileName, index) => {
+      if (pugPath) {
+        if (!fse.pathExistsSync(path.join(pugRootPath, pugPath))) {
+          console.log("路径不存在! 注意路径前面会自动拼接/template/pages!");
+          return Promise.reject(
+            "路径不存在! 注意路径前面会自动拼接/template/pages"
+          );
+        }
+        if (!pathIsSame(pugPath, fileName)) {
+          return;
+        }
       }
-      if (!pathIsSame(pugPath, fileName)) {
-        return;
-      }
-    }
-    proList.push(
-      new Promise(async (resolve, reject) => {
-        const filePath = path.join(pugRootPath, fileName);
-        let funName = fileName.split(pathSymbol).join("_").slice(0, -4);
-        let pugValue = await fse.readFile(filePath);
-        fnStr = pug.compileClient(pugValue, {
-          basedir: path.join(__dirname, "/template"),
-          compileDebug: true,
-          name: funName,
-          filters: getCompilePugFilter()
-        });
-        fnStr = fnStr.replace(
-          `function ${funName}\(locals\)`,
-          `export function ${funName}\(locals\)`
-        );
-        lastPugFnStr += fnStr.slice(
-          fnStr.indexOf(`export function ${funName}\(locals\)`)
-        );
-        resolve();
-      })
-    );
-  });
-  await Promise.all(proList);
-  let toPath = path.join(fnRootPath, "index") + ".js";
-  fse.ensureFileSync(toPath);
-  await fse.writeFile(toPath, lastPugFnStr);
+      proList.push(
+        new Promise(async (resolve, reject) => {
+          const filePath = path.join(pugRootPath, fileName);
+          let funName = fileName.split(pathSymbol).join("_").slice(0, -4);
+          let pugValue = await fse.readFile(filePath);
+          fnStr = pug.compileClient(pugValue, {
+            basedir: path.join(__dirname, "/template"),
+            compileDebug: true,
+            name: funName,
+            filters: getCompilePugFilter()
+          });
+          fnStr = fnStr.replace(
+            `function ${funName}\(locals\)`,
+            `export function ${funName}\(locals\)`
+          );
+          lastPugFnStr += fnStr.slice(
+            fnStr.indexOf(`export function ${funName}\(locals\)`)
+          );
+          resolve();
+        })
+      );
+    });
+    await Promise.all(proList);
+    let toPath = path.join(fnRootPath, "index") + ".js";
+    fse.ensureFileSync(toPath);
+    await fse.writeFile(toPath, lastPugFnStr);
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 /**
@@ -112,7 +116,7 @@ export async function generateGetDataFn() {
       if (config.getDataFnTemplate && config.getDataFnTemplate.length > 0) {
         fun = `export async function ${funName}${config.getDataFnTemplate}\n`;
       } else {
-        fun = `export async function ${funName}(language) {\n let data = [{page_name:''}] || {page_name:''} || null \n return data \n}\n`;
+        fun = `export async function ${funName}(language) {\n let data = {page_name:''} || [{page_name:''}] || null \n return data \n}\n`;
       }
       await fse.appendFile("./getData.js", fun);
     }
@@ -168,25 +172,25 @@ export async function fetchDataToJsonFile(args) {
           console.log(funName, "获取数据函数不存在!");
           return Promise.reject(funName + "获取数据函数不存在!");
         }
-        console.log(
-          `开始获取${path.join(
-            pugRootPath,
-            fileName
-          )}模版${language}国家的数据调用getData.js的${funName}方法`
-        );
+        // console.log(
+        //   `开始获取${path.join(
+        //     pugRootPath,
+        //     fileName
+        //   )}模版${language}国家的数据调用getData.js的${funName}方法`
+        // );
         let starTime = Date.now();
         let data = await getData[funName](language);
-        console.log(
-          language,
-          funName,
-          "数据获取完成执行时间为:",
-          (Date.now() - starTime) / 1000,
-          "s"
-        );
+        // console.log(
+        //   language,
+        //   funName,
+        //   "数据获取完成执行时间为:",
+        //   (Date.now() - starTime) / 1000,
+        //   "s"
+        // );
         let pro = [];
         starTime = Date.now();
         console.log(language, funName, "开始写入json文件");
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           data.forEach(async (item, index) => {
             if (typeof item !== "object") {
               return Promise.reject(
@@ -195,13 +199,12 @@ export async function fetchDataToJsonFile(args) {
             }
             let lastJsonFilePath;
             if (item.page_name && item.page_name.length > 0) {
-              lastJsonFilePath =
-                path.join(
-                  JsonRootPath,
-                  language,
-                  ...jsonFilePath.slice(0, -1),
-                  item.page_name
-                ) + ".json";
+              lastJsonFilePath = path.join(
+                JsonRootPath,
+                language,
+                ...jsonFilePath.slice(0, -1),
+                item.page_name
+              );
             } else {
               lastJsonFilePath =
                 path.join(JsonRootPath, language, ...jsonFilePath) +
@@ -212,20 +215,19 @@ export async function fetchDataToJsonFile(args) {
             let templateArr = filterFinishArr.filter(
               (item) => pagesPathFilter(item) === fileName
             );
-            templateArr.push(fileName);
+            templateArr.unshift(fileName);
             item._template = templateArr;
             pro.push(fse.outputJson(lastJsonFilePath, item));
           });
           await Promise.all(pro);
-        } else if (data && typeof data === "object") {
+        } else if (data && typeof data === "object" && !Array.isArray(data)) {
           if (data.page_name && data.page_name.length > 0) {
-            jsonFilePath =
-              path.join(
-                JsonRootPath,
-                language,
-                ...jsonFilePath.slice(0, -1),
-                item.page_name
-              ) + ".json";
+            jsonFilePath = path.join(
+              JsonRootPath,
+              language,
+              ...jsonFilePath.slice(0, -1),
+              item.page_name
+            );
           } else {
             jsonFilePath =
               path.join(JsonRootPath, language, ...jsonFilePath) + ".json";
@@ -233,7 +235,7 @@ export async function fetchDataToJsonFile(args) {
           let templateArr = filterFinishArr.filter(
             (item) => pagesPathFilter(item) === fileName
           );
-          templateArr.push(fileName);
+          templateArr.unshift(fileName);
           data._template = templateArr;
           await fse.outputJson(jsonFilePath, data);
         } else {
@@ -241,19 +243,20 @@ export async function fetchDataToJsonFile(args) {
             console.log(funName, "未返回数据将不会生成json文件");
           } else {
             console.log(
+              language,
               funName,
-              "期望返回数组、对象、null返回的类型为:",
-              typeof data
+              "期望返回有数据的数组、对象、null结果返回:",
+              data
             );
           }
         }
-        console.log(
-          language,
-          funName,
-          "文件写入完成执行时间为:",
-          (Date.now() - starTime) / 1000,
-          "s"
-        );
+        // console.log(
+        //   language,
+        //   funName,
+        //   "文件写入完成执行时间为:",
+        //   (Date.now() - starTime) / 1000,
+        //   "s"
+        // );
       });
     });
   } catch (error) {
@@ -341,7 +344,6 @@ export async function buildStatic() {
     });
     await compilePagesPugToFn();
     let PagesPugToFn = await import("./pagesPugFn/index.js");
-
     const getData = await import("./getData.js");
     config.languageList.forEach(async (lang) => {
       let langDataPath = path.join(jsonDataPath, lang);
@@ -360,32 +362,55 @@ export async function buildStatic() {
       ).filter((fileName) => fileName.endsWith(".json"));
       pagesAllJsonFileName.forEach(async (jsonFileName) => {
         let data = await fse.readJSON(path.join(langDataPath, jsonFileName));
-        data._template.forEach(async (pugTemplate) => {
-          let funName = pugTemplate.split(pathSymbol).join("_").slice(0, -4);
-          let html = PagesPugToFn[funName]({ data, common: commonData });
-          if (config.isMatchLanguage) {
-            let onlyLangPath = pugTemplate.split(pathSymbol)[0];
-            if (config.languageList.includes(onlyLangPath)) {
-              if (lang !== onlyLangPath) {
-                return;
-              }
-              pugTemplate = pugTemplate
-                .split(pathSymbol)
-                .slice(1)
-                .join(pathSymbol);
+        let pugTemplateArr = data._template;
+        let flag = false;
+        if (config.isMatchLanguage) {
+          let curLangPugTem = data._template.find((item) => {
+            let lang2 = item.split(pathSymbol)[0];
+            if (config.languageList.includes(lang2) && lang === lang2) {
+              return true;
             }
+          });
+          if (curLangPugTem) {
+            flag = true;
+            pugTemplateArr = [curLangPugTem];
+          } else {
+            //没有特殊模版的语言排除其他语言的特殊模版
+            pugTemplateArr = data._template.filter((item) => {
+              let lang2 = item.split(pathSymbol)[0];
+              if (config.languageList.includes(lang2)) {
+                return false;
+              }
+              return true;
+            });
+          }
+        }
+        pugTemplateArr.forEach(async (pugTemplate) => {
+          let funName = pugTemplate.split(pathSymbol).join("_").slice(0, -4);
+          if (flag) {
+            pugTemplate = pugTemplate
+              .split(pathSymbol)
+              .slice(1)
+              .join(pathSymbol);
+          }
+          let html = PagesPugToFn[funName]({ data, common: commonData });
+          if (data.page_name) {
+            pugTemplate =
+              pugTemplate.split(pathSymbol).slice(0, -1).join(pathSymbol) +
+              pathSymbol +
+              data.page_name;
           }
           let htmlPath = path.join(
             outputPath,
             lang,
-            pugTemplate.replace(".pug", ".html")
+            pugTemplate.replace(/\..*$/, ".html")
           );
           fse.ensureFileSync(htmlPath);
           await fse.writeFile(htmlPath, html);
         });
       });
     });
-    console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");
+    // console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");
   } catch (error) {
     console.log(error);
   }

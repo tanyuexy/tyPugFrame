@@ -14,32 +14,6 @@ import { config } from "./config.js";
 const __dirname = path.resolve();
 const pugRootPath = path.join(__dirname, "/template/pages");
 const pathSymbol = process.platform == "linux" ? "/" : "\\";
-//根据后缀名读取文件夹里的所有文件内容
-async function readAllFilesValueInFolder(folderPath, fileExtArr) {
-  let obj = {};
-  let proList = [];
-  try {
-    const files = await fse.readdir(folderPath, {
-      recursive: true
-    });
-    files.forEach((fileName) => {
-      if (fileExtArr.some((ext) => fileName.endsWith(ext))) {
-        proList.push(
-          new Promise(async (resolve, reject) => {
-            const filePath = path.join(folderPath, fileName);
-            const fileContent = await fse.readFile(filePath, "utf8");
-            obj[filePath] = fileContent;
-            resolve();
-          })
-        );
-      }
-    });
-  } catch (error) {
-    console.error(`Error reading files: ${error}`);
-  }
-  await Promise.all(proList);
-  return obj;
-}
 
 /**
  * 将pages下的模版编译为生成函数

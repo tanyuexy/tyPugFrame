@@ -5,9 +5,12 @@ export const config = {
   getDataFnTemplate:
     "(language) {\n let data = {page_name:''} || [{page_name:''}] || null \n return data \n}",
   languageList: ["us", "jp"],
-  commonData: {},
-  fnOutput: "topziz_newFn",
-  staticOutput: "topziz_new",
+  filterBlock: {
+    ads: true
+  },
+  commonData: { versoin: "1.0.0" },
+  fnOutput: "demoFn",
+  staticOutput: "demoDist",
   isMatchLanguage: true,
   isMatchDevice: true
   //   pagesMapTable: [

@@ -4,7 +4,7 @@ export const config = {
   },
   getDataFnTemplate:
     "(language) {\n let data = {page_name:''} || [{page_name:''}] || null \n return data \n}",
-  languageList: ["us", "jp"],
+  languageList: ["us"],
   filterBlock: {
     ads: true
   },

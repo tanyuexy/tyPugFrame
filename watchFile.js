@@ -3,7 +3,6 @@ import fse from "fs-extra";
 import path from "path";
 import { exec } from "child_process";
 import { debounce } from "./utils.js";
-import { generateGetDataFn } from "./generate.js";
 import { config } from "./config.js";
 const __dirname = path.resolve();
 
@@ -14,7 +13,6 @@ function watchTemplate() {
   const refreshPagFn = debounce(() => {
     exec(`curl http://${process.env._localIp}:${process.env._port}/_refresh`);
   }, 300);
-  const generateFun = debounce(generateGetDataFn, 500);
   let watch = chokidar.watch("./template", {
     persistent: true
     // ignored: [/node_modules/, /\.git/]
@@ -23,12 +21,7 @@ function watchTemplate() {
     .on("error", (error) => {
       console.error(`Watcher error: ${error}`);
     })
-    .on("add", (path) => {
-      if (path.endsWith(".pug")) {
-        generateFun();
-      }
-      refreshPagFn();
-    })
+    .on("add", refreshPagFn)
     .on("change", refreshPagFn)
     .on("unlink", refreshPagFn)
     .on("unlinkDir", refreshPagFn);

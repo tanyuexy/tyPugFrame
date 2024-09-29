@@ -1,12 +1,13 @@
-let curCmd = process.env.npm_lifecycle_event;
 import { Worker } from "worker_threads";
 import {
   generateGetDataFn,
   compilePagesPugToFn,
   fetchDataToJsonFile,
   buildFn,
-  buildStatic
+  buildStatic,
+  buildEsiStatic
 } from "./generate.js";
+let curCmd = process.env.npm_lifecycle_event;
 
 await generateGetDataFn();
 switch (curCmd) {
@@ -25,5 +26,8 @@ switch (curCmd) {
     break;
   case "buildStatic":
     buildStatic();
+    break;
+  case "buildEsiStatic":
+    buildEsiStatic();
     break;
 }

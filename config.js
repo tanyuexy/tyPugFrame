@@ -12,12 +12,6 @@ export const config = {
   fnOutput: "demoFn",
   staticOutput: "demoDist",
   isMatchLanguage: true,
-  isMatchDevice: true
-  //   pagesMapTable: [
-  //     {
-  //       inputPath: "",
-  //       outputPath: "",
-  //       data: [] || {}
-  //     }
-  //   ]
+  isMatchDevice: true,
+  isMatchEsi: true
 };

@@ -4,7 +4,12 @@ import ip from "ip";
 import fse from "fs-extra";
 import path from "path";
 import _ from "lodash";
-import { getCompilePugFilter, pagesPathFilter, getIdleProt } from "./utils.js";
+import {
+  getCompilePugFilter,
+  pagesPathFilter,
+  getIdleProt,
+  matchESI
+} from "./utils.js";
 import { get_common_data } from "./getData.js";
 import http from "http";
 import WebSocket, { WebSocketServer } from "ws";
@@ -88,14 +93,13 @@ app.get("*", async (req, res) => {
     for (let index = 0; index < otherPath.length; index++) {
       const element = otherPath[index];
       if (data) {
-        lastPath = data._template[0].replace(".pug", "");
+        lastPath = pagesPathFilter(data._template[0]).replace(".pug", "");
       }
       pugPath = path.join(pagsTemplatePath, element, lastPath) + ".pug";
       if (fse.pathExistsSync(pugPath)) {
         break;
       }
     }
-
     if (fse.pathExistsSync(pugPath)) {
       console.log(
         `请求路径:${req.path}  模版路径:${pugPath}  数据JSON文件路径:${jsonDataPath}`
@@ -107,17 +111,21 @@ app.get("*", async (req, res) => {
         _.merge(
           {
             data,
+            _pagePath: pugPath.split("\\pages")[1],
             common: _.merge(commonData, config.commonData, {
               _refreshScript
             })
           },
           { filters: getCompilePugFilter() }
         ),
-        function (err, html) {
+        async function (err, html) {
           if (err) {
             console.log(err);
             res.send(_refreshScript + err);
           } else {
+            if (config.isMatchEsi) {
+              html = await matchESI(html, data);
+            }
             res.send(_refreshScript + html);
           }
         }

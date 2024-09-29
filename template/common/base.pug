@@ -1,6 +1,17 @@
+mixin imgPlus(src)
+        - src = src ? "https://resource.goodkidsplay.com/" + src : ""
+        img.cs-lazy(data-load=src, alt="") 
+        .loading-img
+            .loading-inner
+                span loading...
 doctype html
 html(ver=common.versoin)
     head
+        meta(content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" data-n-head="true" name="viewport")
+        meta(http-equiv="Content-Type", content="text/html;charset=UTF-8")
+        link(rel="icon" type="image/x-icon" href="/favicon.ico")
+        style
+            include:scss /static/scss/base.scss
         block head
     body
         block body

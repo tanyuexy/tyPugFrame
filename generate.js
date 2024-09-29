@@ -21,54 +21,50 @@ const pathSymbol = process.platform == "linux" ? "/" : "\\";
  * @returns
  */
 export async function compilePagesPugToFn(pugPath) {
-  try {
-    let pagesPugFilePathArr = await getPagesPugFilePathArr();
-    let fnRootPath = path.join(__dirname, "/pagesPugFn");
-    let fnStr;
-    //写入pug编译需要函数
-    let lastPugFnStr = fse.readFileSync("./pugRelyFn.js");
-    let proList = [];
-    pagesPugFilePathArr.forEach((fileName, index) => {
-      if (pugPath) {
-        if (!fse.pathExistsSync(path.join(pugRootPath, pugPath))) {
-          console.log("路径不存在! 注意路径前面会自动拼接/template/pages!");
-          return Promise.reject(
-            "路径不存在! 注意路径前面会自动拼接/template/pages"
-          );
-        }
-        if (!pathIsSame(pugPath, fileName)) {
-          return;
-        }
+  let pagesPugFilePathArr = await getPagesPugFilePathArr();
+  let fnRootPath = path.join(__dirname, "/pagesPugFn");
+  let fnStr;
+  //写入pug编译需要函数
+  let lastPugFnStr = fse.readFileSync("./pugRelyFn.js");
+  let proList = [];
+  pagesPugFilePathArr.forEach((fileName, index) => {
+    if (pugPath) {
+      if (!fse.pathExistsSync(path.join(pugRootPath, pugPath))) {
+        console.log("路径不存在! 注意路径前面会自动拼接/template/pages!");
+        return Promise.reject(
+          "路径不存在! 注意路径前面会自动拼接/template/pages"
+        );
       }
-      proList.push(
-        new Promise(async (resolve, reject) => {
-          const filePath = path.join(pugRootPath, fileName);
-          let funName = fileName.split(pathSymbol).join("_").slice(0, -4);
-          let pugValue = await fse.readFile(filePath);
-          fnStr = pug.compileClient(pugValue, {
-            basedir: path.join(__dirname, "/template"),
-            compileDebug: true,
-            name: funName,
-            filters: getCompilePugFilter()
-          });
-          fnStr = fnStr.replace(
-            `function ${funName}\(locals\)`,
-            `export function ${funName}\(locals\)`
-          );
-          lastPugFnStr += fnStr.slice(
-            fnStr.indexOf(`export function ${funName}\(locals\)`)
-          );
-          resolve();
-        })
-      );
-    });
-    await Promise.all(proList);
-    let toPath = path.join(fnRootPath, "index") + ".js";
-    fse.ensureFileSync(toPath);
-    await fse.writeFile(toPath, lastPugFnStr);
-  } catch (error) {
-    console.log(error);
-  }
+      if (!pathIsSame(pugPath, fileName)) {
+        return;
+      }
+    }
+    proList.push(
+      new Promise(async (resolve, reject) => {
+        const filePath = path.join(pugRootPath, fileName);
+        let funName = fileName.split(pathSymbol).join("_").slice(0, -4);
+        let pugValue = await fse.readFile(filePath);
+        fnStr = pug.compileClient(pugValue, {
+          basedir: path.join(__dirname, "/template"),
+          compileDebug: true,
+          name: funName,
+          filters: getCompilePugFilter()
+        });
+        fnStr = fnStr.replace(
+          `function ${funName}\(locals\)`,
+          `export function ${funName}\(locals\)`
+        );
+        lastPugFnStr += fnStr.slice(
+          fnStr.indexOf(`export function ${funName}\(locals\)`)
+        );
+        resolve();
+      })
+    );
+  });
+  await Promise.all(proList);
+  let toPath = path.join(fnRootPath, "index") + ".js";
+  fse.ensureFileSync(toPath);
+  await fse.writeFile(toPath, lastPugFnStr.trim());
 }
 
 /**
@@ -102,290 +98,357 @@ export async function generateGetDataFn() {
  * @param args /template/pages下的pug模版路径带.pug 或者 语言 将会根据这些过滤模版
  */
 export async function fetchDataToJsonFile(args) {
-  try {
-    const JsonRootPath = path.join(__dirname, "/jsonData");
-    let langArr;
-    let pugPathArr;
-    if (args && Array.isArray(args) && args.length > 0) {
-      langArr = args.filter((item) => !item.endsWith(".pug"));
-      pugPathArr = args.filter((item) => item.endsWith(".pug"));
-    } else {
-      await fse.remove(JsonRootPath);
+  const JsonRootPath = path.join(__dirname, "/jsonData");
+  let langArr;
+  let pugPathArr;
+  if (args && Array.isArray(args) && args.length > 0) {
+    langArr = args.filter((item) => !item.endsWith(".pug"));
+    pugPathArr = args.filter((item) => item.endsWith(".pug"));
+  } else {
+    await fse.remove(JsonRootPath);
+  }
+  const getData = await import("./getData.js");
+  let arrPagesPugFilePathArr = await getPagesPugFilePathArr();
+  let pagesPugFilePathArr = await getPagesPugFilePathArr(true);
+  let filterFinishArr = arrPagesPugFilePathArr.filter(
+    (item) => !pagesPugFilePathArr.includes(item)
+  );
+  const languageList = config.languageList;
+  console.log(arrPagesPugFilePathArr, pagesPugFilePathArr, filterFinishArr);
+  languageList.forEach(async (language) => {
+    if (langArr && langArr.length > 0) {
+      if (!langArr.includes(language)) {
+        return;
+      }
     }
-    const getData = await import("./getData.js");
-    let arrPagesPugFilePathArr = await getPagesPugFilePathArr();
-    let pagesPugFilePathArr = await getPagesPugFilePathArr(true);
-    let filterFinishArr = arrPagesPugFilePathArr.filter(
-      (item) => !pagesPugFilePathArr.includes(item)
-    );
-    const languageList = config.languageList;
 
-    languageList.forEach(async (language) => {
-      if (langArr && langArr.length > 0) {
-        if (!langArr.includes(language)) {
+    pagesPugFilePathArr.forEach(async (fileName) => {
+      if (pugPathArr && pugPathArr.length > 0) {
+        if (!pugPathArr.find((item) => pathIsSame(fileName, item))) {
           return;
         }
       }
+      let removepathArr = fileName.split(pathSymbol).slice(0, -1);
+      if (removepathArr.length > 0) {
+        await fse.remove(path.join(JsonRootPath, language, ...removepathArr));
+      }
+      let funName =
+        "get_" + fileName.split(pathSymbol).join("_").slice(0, -4) + "_data";
 
-      pagesPugFilePathArr.forEach(async (fileName) => {
-        if (pugPathArr && pugPathArr.length > 0) {
-          if (!pugPathArr.find((item) => pathIsSame(fileName, item))) {
-            return;
-          }
-        }
-
-        let removepathArr = fileName.split(pathSymbol).slice(0, -1);
-        if (removepathArr.length > 0) {
-          await fse.remove(path.join(JsonRootPath, language, ...removepathArr));
-        }
-        let funName =
-          "get_" + fileName.split(pathSymbol).join("_").slice(0, -4) + "_data";
-        let jsonFilePath = fileName.slice(0, -4).split(pathSymbol);
-
-        if (!getData[funName] || typeof getData[funName] !== "function") {
-          console.log(funName, "获取数据函数不存在!");
-          return Promise.reject(funName + "获取数据函数不存在!");
-        }
-        // console.log(
-        //   `开始获取${path.join(
-        //     pugRootPath,
-        //     fileName
-        //   )}模版${language}国家的数据调用getData.js的${funName}方法`
-        // );
-        let starTime = Date.now();
-        let data = await getData[funName](language);
-        // console.log(
-        //   language,
-        //   funName,
-        //   "数据获取完成执行时间为:",
-        //   (Date.now() - starTime) / 1000,
-        //   "s"
-        // );
-        let pro = [];
-        starTime = Date.now();
+      let jsonFilePath = fileName.slice(0, -4).split(pathSymbol);
+      if (!getData[funName] || typeof getData[funName] !== "function") {
+        console.log(funName, "获取数据函数不存在!");
+        return Promise.reject(funName + "获取数据函数不存在!");
+      }
+      let starTime = Date.now();
+      let data = await getData[funName](language);
+      let pro = [];
+      starTime = Date.now();
+      if (Array.isArray(data) && data.length > 0) {
         console.log(language, funName, "开始写入json文件");
-        if (Array.isArray(data) && data.length > 0) {
-          data.forEach(async (item, index) => {
-            if (typeof item !== "object") {
-              return Promise.reject(
-                funName + "返回的数据不为对象数组得到类型" + typeof item + "[]"
-              );
-            }
-            let lastJsonFilePath;
-            if (item.page_name && item.page_name.length > 0) {
-              lastJsonFilePath = path.join(
-                JsonRootPath,
-                language,
-                ...jsonFilePath.slice(0, -1),
-                item.page_name
-              );
-            } else {
-              lastJsonFilePath =
-                path.join(JsonRootPath, language, ...jsonFilePath) +
-                "_" +
-                ++index +
-                ".json";
-            }
-            let templateArr = filterFinishArr.filter(
-              (item) => pagesPathFilter(item) === fileName
+        data.forEach(async (item, index) => {
+          if (typeof item !== "object") {
+            return Promise.reject(
+              funName + "返回的数据不为对象数组得到类型" + typeof item + "[]"
             );
-            templateArr.unshift(fileName);
-            item._template = templateArr;
-            pro.push(fse.outputJson(lastJsonFilePath, item));
-          });
-          await Promise.all(pro);
-        } else if (data && typeof data === "object" && !Array.isArray(data)) {
-          if (data.page_name && data.page_name.length > 0) {
-            jsonFilePath = path.join(
+          }
+          let lastJsonFilePath;
+          if (item.page_name && item.page_name.length > 0) {
+            lastJsonFilePath = path.join(
               JsonRootPath,
               language,
               ...jsonFilePath.slice(0, -1),
               item.page_name
             );
           } else {
-            jsonFilePath =
-              path.join(JsonRootPath, language, ...jsonFilePath) + ".json";
+            lastJsonFilePath =
+              path.join(JsonRootPath, language, ...jsonFilePath) +
+              "_" +
+              ++index +
+              ".json";
           }
           let templateArr = filterFinishArr.filter(
             (item) => pagesPathFilter(item) === fileName
           );
-          templateArr.unshift(fileName);
-          data._template = templateArr;
-          await fse.outputJson(jsonFilePath, data);
-        } else {
-          if (!data) {
-            console.log(funName, "未返回数据将不会生成json文件");
-          } else {
-            console.log(
-              language,
-              funName,
-              "期望返回有数据的数组、对象、null结果返回:",
-              data
-            );
+          if (fse.pathExistsSync(path.join(pugRootPath, fileName))) {
+            templateArr.unshift(fileName);
           }
+          item._template = templateArr;
+          pro.push(fse.outputJson(lastJsonFilePath, item));
+        });
+        await Promise.all(pro);
+      } else if (data && typeof data === "object" && !Array.isArray(data)) {
+        console.log(language, funName, "开始写入json文件");
+        if (data.page_name && data.page_name.length > 0) {
+          jsonFilePath = path.join(
+            JsonRootPath,
+            language,
+            ...jsonFilePath.slice(0, -1),
+            item.page_name
+          );
+        } else {
+          jsonFilePath =
+            path.join(JsonRootPath, language, ...jsonFilePath) + ".json";
         }
-        // console.log(
-        //   language,
-        //   funName,
-        //   "文件写入完成执行时间为:",
-        //   (Date.now() - starTime) / 1000,
-        //   "s"
-        // );
-      });
+        let templateArr = filterFinishArr.filter(
+          (item) => pagesPathFilter(item) === fileName
+        );
+        if (fse.pathExistsSync(path.join(pugRootPath, fileName))) {
+          templateArr.unshift(fileName);
+        }
+        data._template = templateArr;
+        await fse.outputJson(jsonFilePath, data);
+      } else {
+        if (!data) {
+          console.log(language, funName, "未返回数据将不会生成json文件");
+        } else {
+          console.log(
+            language,
+            funName,
+            "期望返回有数据的数组、对象、null结果返回:",
+            data
+          );
+        }
+      }
     });
-  } catch (error) {
-    console.log(error);
-  }
+  });
 }
 
 export async function buildFn() {
-  try {
-    if (!fse.pathExistsSync(path.join(__dirname, "jsonData"))) {
-      return Promise.reject(
-        path.join(__dirname, "jsonData"),
-        "目录不存在请先执行npm run getData生成数据!"
-      );
-    }
-    console.log("开始打包...");
-    let starTime = Date.now();
-    let outputPath = path.join(__dirname, config.fnOutput);
-    await fse.remove(outputPath);
-    await sleep(0);
-    await compilePagesPugToFn();
-    await fse.copy(
-      path.join(__dirname, "pagesPugFn"),
-      path.join(outputPath, "pages")
-    );
-    await fse.copy(
-      path.join(__dirname, "public"),
-      path.join(outputPath, "pages")
-    );
-    await fse.copy(
+  if (!fse.pathExistsSync(path.join(__dirname, "jsonData"))) {
+    return Promise.reject(
       path.join(__dirname, "jsonData"),
-      path.join(outputPath, "data")
+      "目录不存在请先执行npm run getData生成数据!"
     );
-    const getData = await import("./getData.js");
-    let totalCommonData = {};
-    let pro = [];
-    config.languageList.forEach((lang) => {
-      pro.push(
-        new Promise(async (resolve, reject) => {
-          let commonData = await getData.get_common_data(lang);
-          totalCommonData[lang] = _.merge(commonData, config.commonData);
-          resolve();
-        })
-      );
-    });
-    ["js", "css", "img"].forEach(async (item) => {
-      fse.ensureDirSync(path.join(__dirname, "/template/static", item));
-      await fse.copy(
-        path.join(__dirname, "/template/static", item),
-        path.join(outputPath, "pages/static", item)
-      );
-    });
-    await Promise.all(pro);
-    await fse.writeJSON(
-      path.join(outputPath, "pages", "common") + ".json",
-      totalCommonData
-    );
-
-    console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");
-  } catch (error) {
-    console.log(error);
   }
+  console.log("开始打包...");
+  let starTime = Date.now();
+  let outputPath = path.join(__dirname, config.fnOutput);
+  await fse.remove(outputPath);
+  await sleep(0);
+  await compilePagesPugToFn();
+  await fse.copy(
+    path.join(__dirname, "pagesPugFn"),
+    path.join(outputPath, "pages")
+  );
+  await fse.copy(
+    path.join(__dirname, "public"),
+    path.join(outputPath, "pages")
+  );
+  await fse.copy(
+    path.join(__dirname, "jsonData"),
+    path.join(outputPath, "data")
+  );
+  const getData = await import("./getData.js");
+  let totalCommonData = {};
+  let pro = [];
+  config.languageList.forEach((lang) => {
+    pro.push(
+      new Promise(async (resolve, reject) => {
+        let commonData = await getData.get_common_data(lang);
+        totalCommonData[lang] = _.merge(commonData, config.commonData);
+        resolve();
+      })
+    );
+  });
+  ["js", "css", "img"].forEach(async (item) => {
+    fse.ensureDirSync(path.join(__dirname, "/template/static", item));
+    await fse.copy(
+      path.join(__dirname, "/template/static", item),
+      path.join(outputPath, "pages/static", item)
+    );
+  });
+  await Promise.all(pro);
+  await fse.writeJSON(
+    path.join(outputPath, "pages", "common") + ".json",
+    totalCommonData
+  );
+
+  console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");
 }
 
 export async function buildStatic() {
   let jsonDataPath = path.join(__dirname, "jsonData");
-  try {
-    if (!fse.pathExistsSync(jsonDataPath)) {
-      return Promise.reject(
-        jsonDataPath + "目录不存在请先执行npm run getData生成数据!"
+
+  if (!fse.pathExistsSync(jsonDataPath)) {
+    return Promise.reject(
+      jsonDataPath + "目录不存在请先执行npm run getData生成数据!"
+    );
+  }
+  console.log("开始打包...");
+  let starTime = Date.now();
+  let outputPath = path.join(__dirname, config.staticOutput);
+  await fse.remove(outputPath);
+  await sleep(0);
+  await fse.copy(path.join(__dirname, "public"), outputPath);
+  ["js", "css", "img"].forEach(async (item) => {
+    fse.ensureDirSync(path.join(__dirname, "/template/static", item));
+    await fse.copy(
+      path.join(__dirname, "/template/static", item),
+      path.join(outputPath, "/static", item)
+    );
+  });
+  await compilePagesPugToFn();
+  let PagesPugToFn = await import("./pagesPugFn/index.js");
+  const getData = await import("./getData.js");
+  config.languageList.forEach(async (lang) => {
+    let langDataPath = path.join(jsonDataPath, lang);
+    if (!fse.pathExistsSync(langDataPath)) {
+      console.log(
+        `注意配置了${lang}语言但${langDataPath}中没有生成${lang}语言的数据!`
       );
+      return;
     }
-    console.log("开始打包...");
-    let starTime = Date.now();
-    let outputPath = path.join(__dirname, config.staticOutput);
-    await fse.remove(outputPath);
-    await sleep(0);
-    await fse.copy(path.join(__dirname, "public"), outputPath);
-    ["js", "css", "img"].forEach(async (item) => {
-      fse.ensureDirSync(path.join(__dirname, "/template/static", item));
-      await fse.copy(
-        path.join(__dirname, "/template/static", item),
-        path.join(outputPath, "/static", item)
-      );
-    });
-    await compilePagesPugToFn();
-    let PagesPugToFn = await import("./pagesPugFn/index.js");
-    const getData = await import("./getData.js");
-    config.languageList.forEach(async (lang) => {
-      let langDataPath = path.join(jsonDataPath, lang);
-      if (!fse.pathExistsSync(langDataPath)) {
-        console.log(
-          `注意配置了${lang}语言但${langDataPath}中没有生成${lang}语言的数据!`
-        );
-        return;
-      }
-      let commonData = await getData.get_common_data(lang);
-      commonData = _.merge(commonData, config.commonData);
-      let pagesAllJsonFileName = (
-        await fse.readdir(path.join(langDataPath), {
-          recursive: true
-        })
-      ).filter((fileName) => fileName.endsWith(".json"));
-      pagesAllJsonFileName.forEach(async (jsonFileName) => {
-        let data = await fse.readJSON(path.join(langDataPath, jsonFileName));
-        let pugTemplateArr = data._template;
-        let flag = false;
-        if (config.isMatchLanguage) {
-          let curLangPugTem = data._template.find((item) => {
-            let lang2 = item.split(pathSymbol)[0];
-            if (config.languageList.includes(lang2) && lang === lang2) {
-              return true;
-            }
-          });
-          if (curLangPugTem) {
-            flag = true;
-            pugTemplateArr = [curLangPugTem];
-          } else {
-            //没有特殊模版的语言排除其他语言的特殊模版
-            pugTemplateArr = data._template.filter((item) => {
-              let lang2 = item.split(pathSymbol)[0];
-              if (config.languageList.includes(lang2)) {
-                return false;
-              }
-              return true;
-            });
+    let commonData = await getData.get_common_data(lang);
+    commonData = _.merge(commonData, config.commonData);
+    let pagesAllJsonFileName = (
+      await fse.readdir(path.join(langDataPath), {
+        recursive: true
+      })
+    ).filter((fileName) => fileName.endsWith(".json"));
+    pagesAllJsonFileName.forEach(async (jsonFileName) => {
+      let data = await fse.readJSON(path.join(langDataPath, jsonFileName));
+      let pugTemplateArr = data._template;
+      let flag = false;
+      if (config.isMatchLanguage) {
+        let curLangPugTem = data._template.find((item) => {
+          let lang2 = item.split(pathSymbol)[0];
+          if (config.languageList.includes(lang2) && lang === lang2) {
+            return true;
           }
-        }
-        pugTemplateArr.forEach(async (pugTemplate) => {
-          let funName = pugTemplate.split(pathSymbol).join("_").slice(0, -4);
-          if (flag) {
-            pugTemplate = pugTemplate
-              .split(pathSymbol)
-              .slice(1)
-              .join(pathSymbol);
-          }
-          let html = PagesPugToFn[funName]({ data, common: commonData });
-          if (data.page_name) {
-            pugTemplate =
-              pugTemplate.split(pathSymbol).slice(0, -1).join(pathSymbol) +
-              pathSymbol +
-              data.page_name;
-          }
-          let htmlPath = path.join(
-            outputPath,
-            lang,
-            pugTemplate.replace(/\..*$/, ".html")
-          );
-          fse.ensureFileSync(htmlPath);
-          await fse.writeFile(htmlPath, html);
         });
+        if (curLangPugTem) {
+          flag = true;
+          pugTemplateArr = [curLangPugTem];
+        } else {
+          //没有特殊模版的语言排除其他语言的特殊模版
+          pugTemplateArr = data._template.filter((item) => {
+            let lang2 = item.split(pathSymbol)[0];
+            if (config.languageList.includes(lang2)) {
+              return false;
+            }
+            return true;
+          });
+        }
+      }
+      pugTemplateArr.forEach(async (pugTemplate) => {
+        let funName = pugTemplate.split(pathSymbol).join("_").slice(0, -4);
+        if (flag) {
+          pugTemplate = pugTemplate.split(pathSymbol).slice(1).join(pathSymbol);
+        }
+        let html = PagesPugToFn[funName]({
+          data,
+          _pagePath: pugTemplate,
+          common: commonData
+        });
+        if (data.page_name) {
+          pugTemplate =
+            pugTemplate.split(pathSymbol).slice(0, -1).join(pathSymbol) +
+            pathSymbol +
+            data.page_name;
+        }
+        let htmlPath = path.join(
+          outputPath,
+          lang,
+          pugTemplate.replace(/\..*$/, ".html")
+        );
+        fse.ensureFileSync(htmlPath);
+        await fse.writeFile(htmlPath, html);
       });
     });
-    // console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");
-  } catch (error) {
-    console.log(error);
+  });
+  // console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");
+}
+
+export async function buildEsiStatic() {
+  let jsonDataPath = path.join(__dirname, "jsonData");
+
+  if (!fse.pathExistsSync(jsonDataPath)) {
+    return Promise.reject(
+      jsonDataPath + "目录不存在请先执行npm run getData生成数据!"
+    );
   }
+  console.log("开始打包...");
+  let outputPath = path.join(__dirname, config.staticOutput);
+  await fse.remove(outputPath);
+  await sleep(0);
+  await fse.copy(path.join(__dirname, "public"), path.join(outputPath, "page"));
+  ["js", "css", "img"].forEach(async (item) => {
+    fse.ensureDirSync(path.join(__dirname, "/template/static/page", item));
+    await fse.copy(
+      path.join(__dirname, "/template/static", item),
+      path.join(outputPath, "/page/static", item)
+    );
+  });
+  await compilePagesPugToFn();
+  let PagesPugToFn = await import("./pagesPugFn/index.js");
+  const getData = await import("./getData.js");
+  config.languageList.forEach(async (lang) => {
+    let langDataPath = path.join(jsonDataPath, lang);
+    if (!fse.pathExistsSync(langDataPath)) {
+      console.log(
+        `注意配置了${lang}语言但${langDataPath}中没有生成${lang}语言的数据!`
+      );
+      return;
+    }
+    let commonData = await getData.get_common_data(lang);
+    commonData = _.merge(commonData, config.commonData);
+    let pagesAllJsonFileName = (
+      await fse.readdir(path.join(langDataPath), {
+        recursive: true
+      })
+    ).filter((fileName) => fileName.endsWith(".json"));
+    pagesAllJsonFileName.forEach(async (jsonFileName) => {
+      let dataPath = path.join(langDataPath, jsonFileName);
+      let data = await fse.readJSON(dataPath);
+      if (jsonFileName.startsWith("detail")) {
+        delete data.imgList;
+      }
+      await fse.outputJSON(
+        path.join(outputPath, "data", lang, jsonFileName),
+        data
+      );
+      let pugTemplateArr = data._template;
+      let flag = false;
+      if (config.isMatchLanguage) {
+        let curLangPugTem = data._template.find((item) => {
+          let lang2 = item.split(pathSymbol)[0];
+          if (config.languageList.includes(lang2) && lang === lang2) {
+            return true;
+          }
+        });
+        if (curLangPugTem) {
+          flag = true;
+          pugTemplateArr = [curLangPugTem];
+        } else {
+          //没有特殊模版的语言排除其他语言的特殊模版
+          pugTemplateArr = data._template.filter((item) => {
+            let lang2 = item.split(pathSymbol)[0];
+            if (config.languageList.includes(lang2)) {
+              return false;
+            }
+            return true;
+          });
+        }
+      }
+      pugTemplateArr.forEach(async (pugTemplate) => {
+        let funName = pugTemplate.split(pathSymbol).join("_").slice(0, -4);
+        if (flag) {
+          pugTemplate = pugTemplate.split(pathSymbol).slice(1).join(pathSymbol);
+        }
+        let html = PagesPugToFn[funName]({
+          _pagePath: pugTemplate,
+          common: commonData
+        });
+        let htmlPath = path.join(
+          outputPath,
+          "page",
+          lang,
+          pugTemplate.replace(/\..*$/, ".html")
+        );
+        fse.ensureFileSync(htmlPath);
+        await fse.writeFile(htmlPath, html);
+      });
+    });
+  });
 }

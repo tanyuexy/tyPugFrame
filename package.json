@@ -16,19 +16,20 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "axios": "^1.7.7",
     "chokidar": "^3.6.0",
     "express": "^4.19.2",
     "express-useragent": "^1.0.15",
     "fs-extra": "^11.2.0",
     "ip": "^2.0.1",
+    "jstransformer-less": "^2.3.0",
+    "jstransformer-scss": "^2.0.0",
     "less": "^4.2.0",
     "lodash": "^4.17.21",
     "nodemon": "^3.1.4",
     "pug": "^3.0.3",
     "tcp-port-used": "^1.0.2",
-    "ws": "^8.18.0",
-    "jstransformer-less": "^2.3.0",
-    "jstransformer-scss": "^2.0.0"
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

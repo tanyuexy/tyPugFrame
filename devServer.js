@@ -8,7 +8,8 @@ import {
   getCompilePugFilter,
   pagesPathFilter,
   getIdleProt,
-  matchESI
+  matchESI,
+  pathSymbol
 } from "./utils.js";
 import { get_common_data } from "./getData.js";
 import http from "http";
@@ -17,7 +18,6 @@ import { config } from "./config.js";
 
 const __dirname = path.resolve();
 const pagsTemplatePath = path.join(__dirname, "/template/pages");
-const pathSymbol = process.platform == "linux" ? "/" : "\\";
 
 const localIp = ip.address();
 const port = await getIdleProt(config.devServer.port, localIp);

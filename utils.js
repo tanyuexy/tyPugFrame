@@ -4,7 +4,7 @@ import tcpPortUsed from "tcp-port-used";
 import { config } from "./config.js";
 
 const __dirname = path.resolve();
-const pathSymbol = process.platform == "linux" ? "/" : "\\";
+export const pathSymbol = process.platform.includes("win") ? "\\" : "/";
 
 export async function getPagesPugFilePathArr(isFilter) {
   let pagesPugFilePathArr = (

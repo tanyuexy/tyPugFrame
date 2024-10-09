@@ -6,14 +6,14 @@ import {
   getCompilePugFilter,
   pathIsSame,
   sleep,
-  pagesPathFilter
+  pagesPathFilter,
+  pathSymbol
 } from "./utils.js";
 import _ from "lodash";
 import { config } from "./config.js";
 
 const __dirname = path.resolve();
 const pugRootPath = path.join(__dirname, "/template/pages");
-const pathSymbol = process.platform == "linux" ? "/" : "\\";
 
 /**
  * 将pages下的模版编译为生成函数
@@ -114,7 +114,6 @@ export async function fetchDataToJsonFile(args) {
     (item) => !pagesPugFilePathArr.includes(item)
   );
   const languageList = config.languageList;
-  console.log(arrPagesPugFilePathArr, pagesPugFilePathArr, filterFinishArr);
   languageList.forEach(async (language) => {
     if (langArr && langArr.length > 0) {
       if (!langArr.includes(language)) {

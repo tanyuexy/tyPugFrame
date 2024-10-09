@@ -13,5 +13,5 @@ export const config = {
   staticOutput: "demoDist",
   isMatchLanguage: true,
   isMatchDevice: true,
-  isMatchEsi: true
+  isMatchEsi: false
 };

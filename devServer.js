@@ -111,7 +111,7 @@ app.get("*", async (req, res) => {
         _.merge(
           {
             data,
-            _pagePath: pugPath.split("\\pages")[1],
+            _pagePath: pugPath.split(pathSymbol + "pages")[1],
             common: _.merge(commonData, config.commonData, {
               _refreshScript
             })

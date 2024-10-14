@@ -112,9 +112,7 @@ app.get("*", async (req, res) => {
           {
             data,
             _pagePath: pugPath.split(pathSymbol + "pages")[1],
-            common: _.merge(commonData, config.commonData, {
-              _refreshScript
-            })
+            common: _.merge(commonData, config.commonData)
           },
           { filters: getCompilePugFilter() }
         ),

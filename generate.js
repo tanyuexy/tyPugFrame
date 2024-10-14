@@ -198,16 +198,7 @@ export async function fetchDataToJsonFile(args) {
         data._template = templateArr;
         await fse.outputJson(jsonFilePath, data);
       } else {
-        if (!data) {
-          console.log(language, funName, "未返回数据将不会生成json文件");
-        } else {
-          console.log(
-            language,
-            funName,
-            "期望返回有数据的数组、对象、null结果返回:",
-            data
-          );
-        }
+        console.log(language, funName, "期望返回数组、对象类型返回:", data);
       }
     });
   });

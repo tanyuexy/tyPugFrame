@@ -6,6 +6,6 @@ export async function get_common_data(language) {
   return {};
 }
 export async function get_index_data(language) {
-  let data = { page_name: "" } || [{ page_name: "" }] || null;
+  let data = { page_name: "" } || [{ page_name: "" }];
   return data;
 }

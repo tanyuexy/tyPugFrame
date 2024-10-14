@@ -1,9 +1,9 @@
 export const config = {
   devServer: {
-    port: 3003
+    port: 80
   },
   getDataFnTemplate:
-    "(language) {\n let data = {page_name:''} || [{page_name:''}] || null \n return data \n}",
+    "(language) {\n let data = {page_name:''} || [{page_name:''}] \n return data \n}",
   languageList: ["us"],
   filterBlock: {
     ads: true

@@ -148,6 +148,7 @@ export async function fetchDataToJsonFile(args) {
           if (!data) {
             return Promise.reject(dataFn + "获取的数据为null!");
           }
+          console.log(language, obj.getDataFn, "开始写入json文件");
           let outPutPath = obj.outPutPath.split("/").join(pathSymbol);
           if (Array.isArray(data)) {
             let name = outPutPath
@@ -291,9 +292,10 @@ export async function buildFn() {
   await sleep(0);
   await compilePagesPugToFn();
   await fse.copy(
-    path.join(__dirname, "pagesPugFn"),
-    path.join(outputPath, "pages")
+    path.join(__dirname, "pagesPugFn/index.js"),
+    path.join(outputPath, "pages/pages.js")
   );
+
   await fse.copy(
     path.join(__dirname, "public"),
     path.join(outputPath, "pages")
@@ -304,9 +306,14 @@ export async function buildFn() {
   );
   const getData = await import("./getData.js");
   let totalCommonData = {};
+  totalCommonData.langCommon = config.commonData;
+  totalCommonData._config = {
+    isMatchLanguage: config.isMatchLanguage,
+    isMatchDevice: config.isMatchDevice
+  };
   await asyncArrayEach(config.languageList, async (lang) => {
     let commonData = await getData.get_common_data(lang);
-    totalCommonData[lang] = _.merge(commonData, config.commonData);
+    totalCommonData[lang] = commonData;
   });
   await asyncArrayEach(["js", "css", "img"], async (item) => {
     fse.ensureDirSync(path.join(__dirname, "/template/static", item));
@@ -526,6 +533,7 @@ export async function buildStatic() {
   console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");
 }
 
+//弃用
 export async function buildEsiStatic() {
   let jsonDataPath = path.join(__dirname, "jsonData");
 

@@ -64,6 +64,20 @@ app.get("*", async (req, res) => {
     let jsonDataPath;
     let pugPath;
     let findPageInfoObj = await matchFileMapTable(lastPath, language, device);
+    let languagePath = "";
+    if (config.isMatchLanguage) {
+      languagePath = language;
+    }
+    let devicePath = "";
+    if (config.isMatchDevice) {
+      devicePath = device;
+    }
+    let otherPath = [
+      languagePath + "/" + devicePath,
+      languagePath,
+      devicePath,
+      ""
+    ];
     if (!findPageInfoObj) {
       if (lastPath.endsWith(".html")) {
         lastPath = lastPath.slice(0, -5);
@@ -78,21 +92,6 @@ app.get("*", async (req, res) => {
         console.log(jsonDataPath, "不存在此json文件页面data数据将为null");
         jsonDataPath = null;
       }
-
-      let languagePath = "";
-      if (config.isMatchLanguage) {
-        languagePath = language;
-      }
-      let devicePath = "";
-      if (config.isMatchDevice) {
-        devicePath = device;
-      }
-      let otherPath = [
-        languagePath + "/" + devicePath,
-        languagePath,
-        devicePath,
-        ""
-      ];
       for (let index = 0; index < otherPath.length; index++) {
         const element = otherPath[index];
         if (data) {
@@ -104,7 +103,19 @@ app.get("*", async (req, res) => {
         }
       }
     } else {
-      pugPath = findPageInfoObj.pugPath;
+      for (let index = 0; index < otherPath.length; index++) {
+        const element = otherPath[index];
+        pugPath = path.join(
+          __dirname,
+          "template",
+          element,
+          findPageInfoObj.pugPath
+        );
+        console.log(pugPath);
+        if (fse.pathExistsSync(pugPath)) {
+          break;
+        }
+      }
       data = findPageInfoObj.data;
       jsonDataPath = findPageInfoObj.getDataFn;
     }
@@ -170,11 +181,10 @@ async function matchFileMapTable(reqPath, language, device) {
             let str = String(item[property]);
             return reqPath.includes(str);
           });
-          console.log(data);
         }
       }
       return {
-        pugPath: path.join(__dirname, "template", obj.pugPath),
+        pugPath: obj.pugPath,
         data,
         getDataFn: obj.getDataFn
       };

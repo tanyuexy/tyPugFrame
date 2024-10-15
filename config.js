@@ -8,8 +8,8 @@ export const config = {
   commonData: { versoin: "1.0.0" },
   fnOutput: "demoFn",
   staticOutput: "demoDist",
-  isMatchLanguage: true,
-  isMatchDevice: true,
+  isMatchLanguage: false,
+  isMatchDevice: false,
   isMatchEsi: false,
   fileMapTable: [
     {

@@ -58,51 +58,59 @@ app.get("*", async (req, res) => {
     } else if (useragent.isMobile) {
       device = "mobile";
     }
-    let lastPath = pagesPathFilter(req.path);
-    if (lastPath.endsWith(".html")) {
-      lastPath = lastPath.slice(0, -5);
-    } else {
-      lastPath = path.join(lastPath, "index");
-    }
     let language = config.languageList[0];
-    let jsonDataPath =
-      path.join(__dirname, "jsonData", language, lastPath) + ".json";
+    let lastPath = pagesPathFilter(req.path);
     let data;
-    if (fse.pathExistsSync(jsonDataPath)) {
-      data = await fse.readJSON(jsonDataPath);
-    } else {
-      console.log(jsonDataPath, "不存在此json文件页面data数据将为null");
-      jsonDataPath = null;
-    }
-
-    let languagePath = "";
-    if (config.isMatchLanguage) {
-      languagePath = language;
-    }
-    let devicePath = "";
-    if (config.isMatchDevice) {
-      devicePath = device;
-    }
-    let otherPath = [
-      languagePath + "/" + devicePath,
-      languagePath,
-      devicePath,
-      ""
-    ];
+    let jsonDataPath;
     let pugPath;
-    for (let index = 0; index < otherPath.length; index++) {
-      const element = otherPath[index];
-      if (data) {
-        lastPath = pagesPathFilter(data._template[0]).replace(".pug", "");
+    let findPageInfoObj = await matchFileMapTable(lastPath, language, device);
+    if (!findPageInfoObj) {
+      if (lastPath.endsWith(".html")) {
+        lastPath = lastPath.slice(0, -5);
+      } else {
+        lastPath = path.join(lastPath, "index");
       }
-      pugPath = path.join(pagsTemplatePath, element, lastPath) + ".pug";
-      if (fse.pathExistsSync(pugPath)) {
-        break;
+      jsonDataPath =
+        path.join(__dirname, "jsonData", language, lastPath) + ".json";
+      if (fse.pathExistsSync(jsonDataPath)) {
+        data = await fse.readJSON(jsonDataPath);
+      } else {
+        console.log(jsonDataPath, "不存在此json文件页面data数据将为null");
+        jsonDataPath = null;
       }
+
+      let languagePath = "";
+      if (config.isMatchLanguage) {
+        languagePath = language;
+      }
+      let devicePath = "";
+      if (config.isMatchDevice) {
+        devicePath = device;
+      }
+      let otherPath = [
+        languagePath + "/" + devicePath,
+        languagePath,
+        devicePath,
+        ""
+      ];
+      for (let index = 0; index < otherPath.length; index++) {
+        const element = otherPath[index];
+        if (data) {
+          lastPath = pagesPathFilter(data._template[0]).replace(".pug", "");
+        }
+        pugPath = path.join(pagsTemplatePath, element, lastPath) + ".pug";
+        if (fse.pathExistsSync(pugPath)) {
+          break;
+        }
+      }
+    } else {
+      pugPath = findPageInfoObj.pugPath;
+      data = findPageInfoObj.data;
+      jsonDataPath = findPageInfoObj.getDataFn;
     }
     if (fse.pathExistsSync(pugPath)) {
       console.log(
-        `请求路径:${req.path}  模版路径:${pugPath}  数据JSON文件路径:${jsonDataPath}`
+        `请求路径:${req.path}  模版路径:${pugPath}  数据JSON文件路径或getData中的函数名:${jsonDataPath}`
       );
       const commonData = await get_common_data(language);
       let _refreshScript = `<script>const ws=new WebSocket('ws://${localIp}:${port}');ws.onmessage=function(event){if(event.data==='refresh'){console.log('Refreshing page...');location.reload()}}</script>`;
@@ -137,6 +145,42 @@ app.get("*", async (req, res) => {
     console.log(error);
   }
 });
+
+async function matchFileMapTable(reqPath, language, device) {
+  let fileMapTable = config.fileMapTable.filter((obj) => {
+    let flag = obj.devMatchFn && obj.pugPath && obj.outPutPath && obj.getDataFn;
+    if (obj.languageList && !obj.languageList.includes(language)) {
+      flag = false;
+    }
+    return flag;
+  });
+  for (let index = 0; index < fileMapTable.length; index++) {
+    const obj = fileMapTable[index];
+    if (obj.devMatchFn(reqPath, device)) {
+      const getData = await import("./getData.js");
+      let data = await getData[obj.getDataFn](language);
+      if (Array.isArray(data)) {
+        let name = obj.outPutPath
+          .split("/")
+          [obj.outPutPath.split("/").length - 1].replace(/\..*$/, "");
+        const regex = /^\[.+\]$/;
+        if (regex.test(name)) {
+          let property = name.slice(1, -1);
+          data = data.find((item) => {
+            let str = String(item[property]);
+            return reqPath.includes(str);
+          });
+          console.log(data);
+        }
+      }
+      return {
+        pugPath: path.join(__dirname, "template", obj.pugPath),
+        data,
+        getDataFn: obj.getDataFn
+      };
+    }
+  }
+}
 
 console.log(
   "Listening:",

@@ -141,31 +141,11 @@ export async function matchESI(body, data) {
   }
 }
 
-// async function pugTemplatefilterBlock(pugPath) {
-//   try {
-//     const regex = new RegExp(
-//       `\\$${dynamicContent}\\$(.*?)\\$${dynamicContent}\\$`,
-//       "g"
-//     );
-//     if (pugPath) {
-//     } else {
-//     }
-//     const files = await fse.readdir(folderPath, {
-//       recursive: true
-//     });
-//     files.forEach((fileName) => {
-//       if (fileExtArr.some((ext) => fileName.endsWith(ext))) {
-//         proList.push(
-//           new Promise(async (resolve, reject) => {
-//             const filePath = path.join(folderPath, fileName);
-//             const fileContent = await fse.readFile(filePath, "utf8");
-//             obj[filePath] = fileContent;
-//             resolve();
-//           })
-//         );
-//       }
-//     });
-//   } catch (error) {
-//     console.error(`Error reading files: ${error}`);
-//   }
-// }
+export async function asyncArrayEach(arr, operationsFun) {
+  try {
+    const results = await Promise.all(arr.map(operationsFun));
+    return results;
+  } catch (error) {
+    throw error;
+  }
+}

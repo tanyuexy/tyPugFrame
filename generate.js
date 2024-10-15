@@ -7,6 +7,7 @@ import {
   pathIsSame,
   sleep,
   pagesPathFilter,
+  asyncArrayEach,
   pathSymbol
 } from "./utils.js";
 import _ from "lodash";
@@ -114,14 +115,88 @@ export async function fetchDataToJsonFile(args) {
     (item) => !pagesPugFilePathArr.includes(item)
   );
   const languageList = config.languageList;
-  languageList.forEach(async (language) => {
+  const fileMapTable = config.fileMapTable;
+  let starTime = Date.now();
+
+  await asyncArrayEach(languageList, async (language) => {
     if (langArr && langArr.length > 0) {
       if (!langArr.includes(language)) {
         return;
       }
     }
 
-    pagesPugFilePathArr.forEach(async (fileName) => {
+    if (fileMapTable && Array.isArray(fileMapTable)) {
+      await asyncArrayEach(fileMapTable, async (obj) => {
+        if (
+          obj.getDataFn &&
+          !obj.pugPath &&
+          obj.outPutPath &&
+          obj.outPutPath.endsWith(".json")
+        ) {
+          if (
+            obj.languageList &&
+            obj.languageList.length > 0 &&
+            !obj.languageList.includes(language)
+          ) {
+            return;
+          }
+          let dataFn = getData[obj.getDataFn];
+          if (!dataFn || typeof dataFn !== "function") {
+            return Promise.reject(dataFn + "获取数据函数不存在!");
+          }
+          let data = await dataFn(language);
+          if (!data) {
+            return Promise.reject(dataFn + "获取的数据为null!");
+          }
+          let outPutPath = obj.outPutPath.split("/").join(pathSymbol);
+          if (Array.isArray(data)) {
+            let name = outPutPath
+              .split(pathSymbol)
+              [outPutPath.split(pathSymbol).length - 1].replace(/\..*$/, "");
+            const regex = /^\[.+\]$/;
+            if (regex.test(name)) {
+              let property = name.slice(1, -1);
+              for (let index = 0; index < data.length; index++) {
+                const dataItem = data[index];
+                let fileName = dataItem[property];
+                if (
+                  fileName === null ||
+                  fileName === undefined ||
+                  fileName === ""
+                ) {
+                  return Promise.reject(
+                    dataFn +
+                      "获取的数据中期望以" +
+                      property +
+                      `命名但是${index}下标中对象属性不存在`
+                  );
+                }
+                await fse.outputJson(
+                  path.join(
+                    JsonRootPath,
+                    language,
+                    outPutPath.replace(name, fileName)
+                  ),
+                  dataItem
+                );
+              }
+            } else {
+              await fse.outputJson(
+                path.join(JsonRootPath, language, outPutPath),
+                data
+              );
+            }
+          } else if (typeof data === "object") {
+            await fse.outputJson(
+              path.join(JsonRootPath, language, outPutPath),
+              data
+            );
+          }
+        }
+      });
+    }
+
+    await asyncArrayEach(pagesPugFilePathArr, async (fileName) => {
       if (pugPathArr && pugPathArr.length > 0) {
         if (!pugPathArr.find((item) => pathIsSame(fileName, item))) {
           return;
@@ -139,13 +214,10 @@ export async function fetchDataToJsonFile(args) {
         console.log(funName, "获取数据函数不存在!");
         return Promise.reject(funName + "获取数据函数不存在!");
       }
-      let starTime = Date.now();
       let data = await getData[funName](language);
-      let pro = [];
-      starTime = Date.now();
       if (Array.isArray(data) && data.length > 0) {
         console.log(language, funName, "开始写入json文件");
-        data.forEach(async (item, index) => {
+        asyncArrayEach(data, async (item, index) => {
           if (typeof item !== "object") {
             return Promise.reject(
               funName + "返回的数据不为对象数组得到类型" + typeof item + "[]"
@@ -173,9 +245,8 @@ export async function fetchDataToJsonFile(args) {
             templateArr.unshift(fileName);
           }
           item._template = templateArr;
-          pro.push(fse.outputJson(lastJsonFilePath, item));
+          await fse.outputJson(lastJsonFilePath, item);
         });
-        await Promise.all(pro);
       } else if (data && typeof data === "object" && !Array.isArray(data)) {
         console.log(language, funName, "开始写入json文件");
         if (data.page_name && data.page_name.length > 0) {
@@ -202,6 +273,8 @@ export async function fetchDataToJsonFile(args) {
       }
     });
   });
+
+  console.log("写入完成花费:", (Date.now() - starTime) / 1000, "s");
 }
 
 export async function buildFn() {
@@ -231,24 +304,17 @@ export async function buildFn() {
   );
   const getData = await import("./getData.js");
   let totalCommonData = {};
-  let pro = [];
-  config.languageList.forEach((lang) => {
-    pro.push(
-      new Promise(async (resolve, reject) => {
-        let commonData = await getData.get_common_data(lang);
-        totalCommonData[lang] = _.merge(commonData, config.commonData);
-        resolve();
-      })
-    );
+  await asyncArrayEach(config.languageList, async (lang) => {
+    let commonData = await getData.get_common_data(lang);
+    totalCommonData[lang] = _.merge(commonData, config.commonData);
   });
-  ["js", "css", "img"].forEach(async (item) => {
+  await asyncArrayEach(["js", "css", "img"], async (item) => {
     fse.ensureDirSync(path.join(__dirname, "/template/static", item));
     await fse.copy(
       path.join(__dirname, "/template/static", item),
       path.join(outputPath, "pages/static", item)
     );
   });
-  await Promise.all(pro);
   await fse.writeJSON(
     path.join(outputPath, "pages", "common") + ".json",
     totalCommonData
@@ -267,21 +333,22 @@ export async function buildStatic() {
   }
   console.log("开始打包...");
   let starTime = Date.now();
-  let outputPath = path.join(__dirname, config.staticOutput);
-  await fse.remove(outputPath);
+  let distOutputPath = path.join(__dirname, config.staticOutput);
+  await fse.remove(distOutputPath);
   await sleep(0);
-  await fse.copy(path.join(__dirname, "public"), outputPath);
-  ["js", "css", "img"].forEach(async (item) => {
+  await fse.copy(path.join(__dirname, "public"), distOutputPath);
+  await asyncArrayEach(["js", "css", "img"], async (item) => {
     fse.ensureDirSync(path.join(__dirname, "/template/static", item));
     await fse.copy(
       path.join(__dirname, "/template/static", item),
-      path.join(outputPath, "/static", item)
+      path.join(distOutputPath, "/static", item)
     );
   });
   await compilePagesPugToFn();
   let PagesPugToFn = await import("./pagesPugFn/index.js");
   const getData = await import("./getData.js");
-  config.languageList.forEach(async (lang) => {
+  const fileMapTable = config.fileMapTable;
+  await asyncArrayEach(config.languageList, async (lang) => {
     let langDataPath = path.join(jsonDataPath, lang);
     if (!fse.pathExistsSync(langDataPath)) {
       console.log(
@@ -291,14 +358,123 @@ export async function buildStatic() {
     }
     let commonData = await getData.get_common_data(lang);
     commonData = _.merge(commonData, config.commonData);
+
+    if (fileMapTable && Array.isArray(fileMapTable)) {
+      await asyncArrayEach(fileMapTable, async (obj) => {
+        if (
+          obj.pugPath &&
+          obj.getDataFn &&
+          obj.outPutPath &&
+          obj.outPutPath.endsWith(".html")
+        ) {
+          if (
+            obj.languageList &&
+            obj.languageList.length > 0 &&
+            !obj.languageList.includes(lang)
+          ) {
+            return;
+          }
+          let pugPath = path.join(
+            __dirname,
+            "template",
+            obj.pugPath.split("/").join(pathSymbol)
+          );
+          if (!fse.pathExistsSync(pugPath)) {
+            return Promise.reject(pugPath + "模版路径不存在!");
+          }
+          let dataFn = getData[obj.getDataFn];
+          if (!dataFn || typeof dataFn !== "function") {
+            return Promise.reject(dataFn + "获取数据函数不存在!");
+          }
+          let data = await dataFn(lang);
+          if (!data) {
+            return Promise.reject(dataFn + "获取的数据为null!");
+          }
+          let outPutPath = obj.outPutPath.split("/").join(pathSymbol);
+          let htmlPath;
+          let html;
+          if (Array.isArray(data)) {
+            let name = outPutPath
+              .split(pathSymbol)
+              [outPutPath.split(pathSymbol).length - 1].replace(/\..*$/, "");
+            const regex = /^\[.+\]$/;
+            if (regex.test(name)) {
+              let property = name.slice(1, -1);
+              for (let index = 0; index < data.length; index++) {
+                const dataItem = data[index];
+                let fileName = dataItem[property];
+                if (
+                  fileName === null ||
+                  fileName === undefined ||
+                  fileName === ""
+                ) {
+                  return Promise.reject(
+                    dataFn +
+                      "获取的数据中期望以" +
+                      property +
+                      `命名但是${index}下标中对象${property}属性为:${fileName}`
+                  );
+                }
+                htmlPath = path.join(
+                  distOutputPath,
+                  lang,
+                  outPutPath.replace(name, fileName)
+                );
+                html = pug.compileFile(pugPath, {
+                  basedir: path.join(__dirname, "/template"),
+                  compileDebug: true,
+                  filters: getCompilePugFilter()
+                })({
+                  data: dataItem,
+                  _pagePath: obj.pugPath,
+                  common: commonData
+                });
+                fse.ensureFileSync(htmlPath);
+                await fse.writeFile(htmlPath, html);
+              }
+            } else {
+              htmlPath = path.join(__dirname, "template", lang, outPutPath);
+              html = pug.compileFile(pugPath, {
+                basedir: path.join(__dirname, "/template"),
+                compileDebug: true,
+                filters: getCompilePugFilter()
+              })({
+                data,
+                _pagePath: obj.pugPath,
+                common: commonData
+              });
+              fse.ensureFileSync(htmlPath);
+              await fse.writeFile(htmlPath, html);
+            }
+          } else if (typeof data === "object") {
+            htmlPath = path.join(distOutputPath, lang, outPutPath);
+            html = pug.compileFile(pugPath, {
+              basedir: path.join(__dirname, "/template"),
+              compileDebug: true,
+              filters: getCompilePugFilter()
+            })({
+              data,
+              _pagePath: obj.pugPath,
+              common: commonData
+            });
+            fse.ensureFileSync(htmlPath);
+            await fse.writeFile(htmlPath, html);
+          }
+        }
+      });
+    }
+
     let pagesAllJsonFileName = (
       await fse.readdir(path.join(langDataPath), {
         recursive: true
       })
     ).filter((fileName) => fileName.endsWith(".json"));
-    pagesAllJsonFileName.forEach(async (jsonFileName) => {
+    await asyncArrayEach(pagesAllJsonFileName, async (jsonFileName) => {
       let data = await fse.readJSON(path.join(langDataPath, jsonFileName));
       let pugTemplateArr = data._template;
+      if (!pugTemplateArr) {
+        return;
+      }
       let flag = false;
       if (config.isMatchLanguage) {
         let curLangPugTem = data._template.find((item) => {
@@ -321,7 +497,7 @@ export async function buildStatic() {
           });
         }
       }
-      pugTemplateArr.forEach(async (pugTemplate) => {
+      await asyncArrayEach(pugTemplateArr, async (pugTemplate) => {
         let funName = pugTemplate.split(pathSymbol).join("_").slice(0, -4);
         if (flag) {
           pugTemplate = pugTemplate.split(pathSymbol).slice(1).join(pathSymbol);
@@ -338,7 +514,7 @@ export async function buildStatic() {
             data.page_name;
         }
         let htmlPath = path.join(
-          outputPath,
+          distOutputPath,
           lang,
           pugTemplate.replace(/\..*$/, ".html")
         );
@@ -347,7 +523,7 @@ export async function buildStatic() {
       });
     });
   });
-  // console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");
+  console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");
 }
 
 export async function buildEsiStatic() {

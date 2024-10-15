@@ -27,6 +27,7 @@ switch (curCmd) {
   case "buildStatic":
     buildStatic();
     break;
+  //基本弃用了
   case "buildEsiStatic":
     buildEsiStatic();
     break;

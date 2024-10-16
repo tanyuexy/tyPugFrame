@@ -171,9 +171,7 @@ async function matchFileMapTable(reqPath, language, device) {
       const getData = await import("./getData.js");
       let data = await getData[obj.getDataFn](language);
       if (Array.isArray(data)) {
-        let name = obj.outPutPath
-          .split("/")
-          [obj.outPutPath.split("/").length - 1].replace(/\..*$/, "");
+        let name = obj.outPutPath.split("/").pop().replace(/\..*$/, "");
         const regex = /^\[.+\]$/;
         if (regex.test(name)) {
           let property = name.slice(1, -1);

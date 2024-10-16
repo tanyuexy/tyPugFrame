@@ -12,6 +12,7 @@ import {
 } from "./utils.js";
 import _ from "lodash";
 import { config } from "./config.js";
+import UglifyJS from "uglify-js";
 
 const __dirname = path.resolve();
 const pugRootPath = path.join(__dirname, "/template/pages");
@@ -64,8 +65,9 @@ export async function compilePagesPugToFn(pugPath) {
   });
   await Promise.all(proList);
   let toPath = path.join(fnRootPath, "index") + ".js";
+  let result = UglifyJS.minify(lastPugFnStr);
   fse.ensureFileSync(toPath);
-  await fse.writeFile(toPath, lastPugFnStr.trim());
+  await fse.writeFile(toPath, result.code);
 }
 
 /**
@@ -151,9 +153,7 @@ export async function fetchDataToJsonFile(args) {
           console.log(language, obj.getDataFn, "开始写入json文件");
           let outPutPath = obj.outPutPath.split("/").join(pathSymbol);
           if (Array.isArray(data)) {
-            let name = outPutPath
-              .split(pathSymbol)
-              [outPutPath.split(pathSymbol).length - 1].replace(/\..*$/, "");
+            let name = outPutPath.split(pathSymbol).pop().replace(/\..*$/, "");
             const regex = /^\[.+\]$/;
             if (regex.test(name)) {
               let property = name.slice(1, -1);
@@ -401,9 +401,7 @@ export async function buildStatic() {
           let htmlPath;
           let html;
           if (Array.isArray(data)) {
-            let name = outPutPath
-              .split(pathSymbol)
-              [outPutPath.split(pathSymbol).length - 1].replace(/\..*$/, "");
+            let name = outPutPath.split(pathSymbol).pop().replace(/\..*$/, "");
             const regex = /^\[.+\]$/;
             if (regex.test(name)) {
               let property = name.slice(1, -1);

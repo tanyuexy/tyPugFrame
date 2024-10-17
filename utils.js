@@ -23,18 +23,14 @@ export async function getPagesPugFilePathArr(isFilter) {
 }
 
 export function pagesPathFilter(pugPath) {
-  if (config.isMatchLanguage) {
-    pugPath = pugPath
-      .split(pathSymbol)
-      .filter((item) => !config.languageList.includes(item))
-      .join(pathSymbol);
-  }
-  if (config.isMatchDevice) {
-    pugPath = pugPath
-      .split(pathSymbol)
-      .filter((item) => !["pc", "mobile", "ipad"].includes(item))
-      .join(pathSymbol);
-  }
+  pugPath = pugPath
+    .split(pathSymbol)
+    .filter((item) => !config.languageList.includes(item))
+    .join(pathSymbol);
+  pugPath = pugPath
+    .split(pathSymbol)
+    .filter((item) => !["pc", "mobile", "ipad"].includes(item))
+    .join(pathSymbol);
   return pugPath;
 }
 

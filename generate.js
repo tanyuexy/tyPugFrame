@@ -307,10 +307,6 @@ export async function buildFn() {
   const getData = await import("./getData.js");
   let totalCommonData = {};
   totalCommonData.langCommon = config.commonData;
-  totalCommonData._config = {
-    isMatchLanguage: config.isMatchLanguage,
-    isMatchDevice: config.isMatchDevice
-  };
   await asyncArrayEach(config.languageList, async (lang) => {
     let commonData = await getData.get_common_data(lang);
     totalCommonData[lang] = commonData;
@@ -381,64 +377,101 @@ export async function buildStatic() {
           ) {
             return;
           }
-          let pugPath = path.join(
-            __dirname,
-            "template",
-            obj.pugPath.split("/").join(pathSymbol)
-          );
-          if (!fse.pathExistsSync(pugPath)) {
-            return Promise.reject(pugPath + "模版路径不存在!");
+          let langPrefix =
+            obj.languageList && obj.languageList.length > 0 ? lang : "";
+          let pugPathPreArr = [""];
+          if (obj.deviceList && obj.deviceList.length > 0) {
+            pugPathPreArr = obj.deviceList;
           }
-          let dataFn = getData[obj.getDataFn];
-          if (!dataFn || typeof dataFn !== "function") {
-            return Promise.reject(dataFn + "获取数据函数不存在!");
-          }
-          let data = await dataFn(lang);
-          if (!data) {
-            return Promise.reject(dataFn + "获取的数据为null!");
-          }
-          let outPutPath = obj.outPutPath.split("/").join(pathSymbol);
-          let htmlPath;
-          let html;
-          if (Array.isArray(data)) {
-            let name = outPutPath.split(pathSymbol).pop().replace(/\..*$/, "");
-            const regex = /^\[.+\]$/;
-            if (regex.test(name)) {
-              let property = name.slice(1, -1);
-              for (let index = 0; index < data.length; index++) {
-                const dataItem = data[index];
-                let fileName = dataItem[property];
-                if (
-                  fileName === null ||
-                  fileName === undefined ||
-                  fileName === ""
-                ) {
-                  return Promise.reject(
-                    dataFn +
-                      "获取的数据中期望以" +
-                      property +
-                      `命名但是${index}下标中对象${property}属性为:${fileName}`
+          await asyncArrayEach(pugPathPreArr, async (devicePrefix) => {
+            let pugPath = path.join(
+              pugRootPath,
+              langPrefix,
+              devicePrefix,
+              obj.pugPath.split("/").join(pathSymbol)
+            );
+            if (!fse.pathExistsSync(pugPath)) {
+              return Promise.reject(pugPath + "模版路径不存在!");
+            }
+            let dataFn = getData[obj.getDataFn];
+            if (!dataFn || typeof dataFn !== "function") {
+              return Promise.reject(dataFn + "获取数据函数不存在!");
+            }
+            let data = await dataFn(lang);
+            if (!data) {
+              return Promise.reject(dataFn + "获取的数据为null!");
+            }
+            let outPutPath = obj.outPutPath.split("/").join(pathSymbol);
+            let htmlPath;
+            let html;
+            if (Array.isArray(data)) {
+              let name = outPutPath
+                .split(pathSymbol)
+                .pop()
+                .replace(/\..*$/, "");
+              const regex = /^\[.+\]$/;
+              if (regex.test(name)) {
+                let property = name.slice(1, -1);
+                for (let index = 0; index < data.length; index++) {
+                  const dataItem = data[index];
+                  let fileName = dataItem[property];
+                  if (
+                    fileName === null ||
+                    fileName === undefined ||
+                    fileName === ""
+                  ) {
+                    return Promise.reject(
+                      dataFn +
+                        "获取的数据中期望以" +
+                        property +
+                        `命名但是${index}下标中对象${property}属性为:${fileName}`
+                    );
+                  }
+                  htmlPath = path.join(
+                    distOutputPath,
+                    lang,
+                    devicePrefix,
+                    outPutPath.replace(name, fileName)
                   );
+                  html = pug.compileFile(pugPath, {
+                    basedir: path.join(__dirname, "/template"),
+                    compileDebug: true,
+                    filters: getCompilePugFilter()
+                  })({
+                    data: dataItem,
+                    _pagePath: obj.pugPath,
+                    common: commonData
+                  });
+                  fse.ensureFileSync(htmlPath);
+                  await fse.writeFile(htmlPath, html);
                 }
+              } else {
                 htmlPath = path.join(
-                  distOutputPath,
+                  __dirname,
+                  "template",
                   lang,
-                  outPutPath.replace(name, fileName)
+                  devicePrefix,
+                  outPutPath
                 );
                 html = pug.compileFile(pugPath, {
                   basedir: path.join(__dirname, "/template"),
                   compileDebug: true,
                   filters: getCompilePugFilter()
                 })({
-                  data: dataItem,
+                  data,
                   _pagePath: obj.pugPath,
                   common: commonData
                 });
                 fse.ensureFileSync(htmlPath);
                 await fse.writeFile(htmlPath, html);
               }
-            } else {
-              htmlPath = path.join(__dirname, "template", lang, outPutPath);
+            } else if (typeof data === "object") {
+              htmlPath = path.join(
+                distOutputPath,
+                lang,
+                devicePrefix,
+                outPutPath
+              );
               html = pug.compileFile(pugPath, {
                 basedir: path.join(__dirname, "/template"),
                 compileDebug: true,
@@ -451,20 +484,7 @@ export async function buildStatic() {
               fse.ensureFileSync(htmlPath);
               await fse.writeFile(htmlPath, html);
             }
-          } else if (typeof data === "object") {
-            htmlPath = path.join(distOutputPath, lang, outPutPath);
-            html = pug.compileFile(pugPath, {
-              basedir: path.join(__dirname, "/template"),
-              compileDebug: true,
-              filters: getCompilePugFilter()
-            })({
-              data,
-              _pagePath: obj.pugPath,
-              common: commonData
-            });
-            fse.ensureFileSync(htmlPath);
-            await fse.writeFile(htmlPath, html);
-          }
+          });
         }
       });
     }
@@ -481,27 +501,27 @@ export async function buildStatic() {
         return;
       }
       let flag = false;
-      if (config.isMatchLanguage) {
-        let curLangPugTem = data._template.find((item) => {
-          let lang2 = item.split(pathSymbol)[0];
-          if (config.languageList.includes(lang2) && lang === lang2) {
-            return true;
-          }
-        });
-        if (curLangPugTem) {
-          flag = true;
-          pugTemplateArr = [curLangPugTem];
-        } else {
-          //没有特殊模版的语言排除其他语言的特殊模版
-          pugTemplateArr = data._template.filter((item) => {
-            let lang2 = item.split(pathSymbol)[0];
-            if (config.languageList.includes(lang2)) {
-              return false;
-            }
-            return true;
-          });
+
+      let curLangPugTem = data._template.find((item) => {
+        let lang2 = item.split(pathSymbol)[0];
+        if (config.languageList.includes(lang2) && lang === lang2) {
+          return true;
         }
+      });
+      if (curLangPugTem) {
+        flag = true;
+        pugTemplateArr = [curLangPugTem];
+      } else {
+        //没有特殊模版的语言排除其他语言的特殊模版
+        pugTemplateArr = data._template.filter((item) => {
+          let lang2 = item.split(pathSymbol)[0];
+          if (config.languageList.includes(lang2)) {
+            return false;
+          }
+          return true;
+        });
       }
+
       await asyncArrayEach(pugTemplateArr, async (pugTemplate) => {
         let funName = pugTemplate.split(pathSymbol).join("_").slice(0, -4);
         if (flag) {
@@ -529,98 +549,4 @@ export async function buildStatic() {
     });
   });
   console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");
-}
-
-//弃用
-export async function buildEsiStatic() {
-  let jsonDataPath = path.join(__dirname, "jsonData");
-
-  if (!fse.pathExistsSync(jsonDataPath)) {
-    return Promise.reject(
-      jsonDataPath + "目录不存在请先执行npm run getData生成数据!"
-    );
-  }
-  console.log("开始打包...");
-  let outputPath = path.join(__dirname, config.staticOutput);
-  await fse.remove(outputPath);
-  await sleep(0);
-  await fse.copy(path.join(__dirname, "public"), path.join(outputPath, "page"));
-  ["js", "css", "img"].forEach(async (item) => {
-    fse.ensureDirSync(path.join(__dirname, "/template/static/page", item));
-    await fse.copy(
-      path.join(__dirname, "/template/static", item),
-      path.join(outputPath, "/page/static", item)
-    );
-  });
-  await compilePagesPugToFn();
-  let PagesPugToFn = await import("./pagesPugFn/index.js");
-  const getData = await import("./getData.js");
-  config.languageList.forEach(async (lang) => {
-    let langDataPath = path.join(jsonDataPath, lang);
-    if (!fse.pathExistsSync(langDataPath)) {
-      console.log(
-        `注意配置了${lang}语言但${langDataPath}中没有生成${lang}语言的数据!`
-      );
-      return;
-    }
-    let commonData = await getData.get_common_data(lang);
-    commonData = _.merge(commonData, config.commonData);
-    let pagesAllJsonFileName = (
-      await fse.readdir(path.join(langDataPath), {
-        recursive: true
-      })
-    ).filter((fileName) => fileName.endsWith(".json"));
-    pagesAllJsonFileName.forEach(async (jsonFileName) => {
-      let dataPath = path.join(langDataPath, jsonFileName);
-      let data = await fse.readJSON(dataPath);
-      if (jsonFileName.startsWith("detail")) {
-        delete data.imgList;
-      }
-      await fse.outputJSON(
-        path.join(outputPath, "data", lang, jsonFileName),
-        data
-      );
-      let pugTemplateArr = data._template;
-      let flag = false;
-      if (config.isMatchLanguage) {
-        let curLangPugTem = data._template.find((item) => {
-          let lang2 = item.split(pathSymbol)[0];
-          if (config.languageList.includes(lang2) && lang === lang2) {
-            return true;
-          }
-        });
-        if (curLangPugTem) {
-          flag = true;
-          pugTemplateArr = [curLangPugTem];
-        } else {
-          //没有特殊模版的语言排除其他语言的特殊模版
-          pugTemplateArr = data._template.filter((item) => {
-            let lang2 = item.split(pathSymbol)[0];
-            if (config.languageList.includes(lang2)) {
-              return false;
-            }
-            return true;
-          });
-        }
-      }
-      pugTemplateArr.forEach(async (pugTemplate) => {
-        let funName = pugTemplate.split(pathSymbol).join("_").slice(0, -4);
-        if (flag) {
-          pugTemplate = pugTemplate.split(pathSymbol).slice(1).join(pathSymbol);
-        }
-        let html = PagesPugToFn[funName]({
-          _pagePath: pugTemplate,
-          common: commonData
-        });
-        let htmlPath = path.join(
-          outputPath,
-          "page",
-          lang,
-          pugTemplate.replace(/\..*$/, ".html")
-        );
-        fse.ensureFileSync(htmlPath);
-        await fse.writeFile(htmlPath, html);
-      });
-    });
-  });
 }

@@ -64,20 +64,8 @@ app.get("*", async (req, res) => {
     let jsonDataPath;
     let pugPath;
     let findPageInfoObj = await matchFileMapTable(lastPath, language, device);
-    let languagePath = "";
-    if (config.isMatchLanguage) {
-      languagePath = language;
-    }
-    let devicePath = "";
-    if (config.isMatchDevice) {
-      devicePath = device;
-    }
-    let otherPath = [
-      languagePath + "/" + devicePath,
-      languagePath,
-      devicePath,
-      ""
-    ];
+
+    let otherPath = [language + "/" + device, language, device, ""];
     if (!findPageInfoObj) {
       if (lastPath.endsWith(".html")) {
         lastPath = lastPath.slice(0, -5);
@@ -105,13 +93,7 @@ app.get("*", async (req, res) => {
     } else {
       for (let index = 0; index < otherPath.length; index++) {
         const element = otherPath[index];
-        pugPath = path.join(
-          __dirname,
-          "template",
-          element,
-          findPageInfoObj.pugPath
-        );
-        console.log(pugPath);
+        pugPath = path.join(pagsTemplatePath, element, findPageInfoObj.pugPath);
         if (fse.pathExistsSync(pugPath)) {
           break;
         }
@@ -161,6 +143,9 @@ async function matchFileMapTable(reqPath, language, device) {
   let fileMapTable = config.fileMapTable.filter((obj) => {
     let flag = obj.devMatchFn && obj.pugPath && obj.outPutPath && obj.getDataFn;
     if (obj.languageList && !obj.languageList.includes(language)) {
+      flag = false;
+    }
+    if (obj.deviceList && !obj.deviceList.includes(device)) {
       flag = false;
     }
     return flag;

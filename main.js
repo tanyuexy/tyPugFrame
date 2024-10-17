@@ -4,8 +4,7 @@ import {
   compilePagesPugToFn,
   fetchDataToJsonFile,
   buildFn,
-  buildStatic,
-  buildEsiStatic
+  buildStatic
 } from "./generate.js";
 let curCmd = process.env.npm_lifecycle_event;
 
@@ -26,9 +25,5 @@ switch (curCmd) {
     break;
   case "buildStatic":
     buildStatic();
-    break;
-  //基本弃用了
-  case "buildEsiStatic":
-    buildEsiStatic();
     break;
 }

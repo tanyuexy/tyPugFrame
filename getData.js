@@ -1,10 +1,13 @@
 import fse from "fs-extra";
 import path from "path";
+import _ from "lodash";
 import axios from "axios";
+import languageData from "./langConfig/languageData.js";
 const __dirname = path.resolve();
 
 export async function get_common_data(language) {
-  return {};
+  let data = languageData[language];
+  return data;
 }
 
 export async function get_index_data(language) {

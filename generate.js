@@ -293,13 +293,10 @@ export async function buildFn() {
   await compilePagesPugToFn();
   await fse.copy(
     path.join(__dirname, "pagesPugFn/index.js"),
-    path.join(outputPath, "pages/pages.js")
+    path.join(outputPath, "page/pages.js")
   );
 
-  await fse.copy(
-    path.join(__dirname, "public"),
-    path.join(outputPath, "pages")
-  );
+  await fse.copy(path.join(__dirname, "public"), path.join(outputPath, "page"));
   await fse.copy(
     path.join(__dirname, "jsonData"),
     path.join(outputPath, "data")
@@ -315,11 +312,11 @@ export async function buildFn() {
     fse.ensureDirSync(path.join(__dirname, "/template/static", item));
     await fse.copy(
       path.join(__dirname, "/template/static", item),
-      path.join(outputPath, "pages/static", item)
+      path.join(outputPath, "page/static", item)
     );
   });
   await fse.writeJSON(
-    path.join(outputPath, "pages", "common") + ".json",
+    path.join(outputPath, "page", "common") + ".json",
     totalCommonData
   );
 

@@ -27,7 +27,7 @@ export async function compilePagesPugToFn(pugPath) {
   let fnRootPath = path.join(__dirname, "/pagesPugFn");
   let fnStr;
   //写入pug编译需要函数
-  let lastPugFnStr = fse.readFileSync("./pugRelyFn.js");
+  let lastPugFnStr = fse.readFileSync("./pugLib.js");
   let proList = [];
   pagesPugFilePathArr.forEach((fileName, index) => {
     if (pugPath) {

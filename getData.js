@@ -7,7 +7,7 @@ const __dirname = path.resolve();
 
 export async function get_common_data(language) {
   let data = languageData[language];
-  return data;
+  return { lang: data };
 }
 
 export async function get_index_data(language) {

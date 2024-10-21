@@ -2,7 +2,6 @@
     "ext": "js",
     "ignore": [
         "node_modules",
-        "getData.js",
         "template"
     ]
 }

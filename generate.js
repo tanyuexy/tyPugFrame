@@ -47,6 +47,7 @@ export async function compilePagesPugToFn(pugPath) {
         let funName = fileName.split(pathSymbol).join("_").slice(0, -4);
         let pugValue = await fse.readFile(filePath);
         fnStr = pug.compileClient(pugValue, {
+          filename: filePath,
           basedir: path.join(__dirname, "/template"),
           compileDebug: true,
           name: funName,

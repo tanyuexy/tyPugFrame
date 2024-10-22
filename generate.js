@@ -219,9 +219,10 @@ export async function fetchDataToJsonFile(args) {
       if (Array.isArray(data) && data.length > 0) {
         console.log(language, funName, "开始写入json文件");
         await asyncArrayEach(data, async (item, index) => {
-          if (typeof item !== "object") {
+          if (typeof item !== "object" || Array.isArray(item)) {
+            let type = Array.isArray(item) ? "array" : typeof item;
             return Promise.reject(
-              funName + "返回的数据不为对象数组得到类型" + typeof item + "[]"
+              funName + "返回的数据不为对象数组得到类型" + type + "[]"
             );
           }
           let lastJsonFilePath;

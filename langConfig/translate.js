@@ -1,7 +1,7 @@
 import { v2 } from "@google-cloud/translate";
 import fse from "fs-extra";
 import languageData from "./languageData.js";
-import { asyncArrayEach } from "../utils.js";
+import async from "async";
 import { config } from "../config.js";
 import path from "path";
 
@@ -34,7 +34,7 @@ async function main() {
   let orginData = languageData[orginLang];
   console.log("开始翻译");
   let startTime = Date.now();
-  await asyncArrayEach(targetLangList, async (language) => {
+  await async.each(targetLangList, async (language) => {
     if (language === orginLang) return;
     console.log(language);
     languageData[language] = {};

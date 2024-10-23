@@ -136,12 +136,3 @@ export async function matchESI(body, data) {
     console.log(error);
   }
 }
-
-export async function asyncArrayEach(arr, operationsFun) {
-  try {
-    const results = await Promise.all(arr.map(operationsFun));
-    return results;
-  } catch (error) {
-    throw error;
-  }
-}

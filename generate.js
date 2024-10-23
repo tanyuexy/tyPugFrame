@@ -7,11 +7,11 @@ import {
   pathIsSame,
   sleep,
   pagesPathFilter,
-  asyncArrayEach,
   pathSymbol
 } from "./utils.js";
 import _ from "lodash";
 import { config } from "./config.js";
+import async from "async";
 import UglifyJS from "uglify-js";
 
 const __dirname = path.resolve();
@@ -121,7 +121,7 @@ export async function fetchDataToJsonFile(args) {
   const fileMapTable = config.fileMapTable;
   let starTime = Date.now();
 
-  await asyncArrayEach(languageList, async (language) => {
+  await async.each(languageList, async (language) => {
     if (langArr && langArr.length > 0) {
       if (!langArr.includes(language)) {
         return;
@@ -129,7 +129,7 @@ export async function fetchDataToJsonFile(args) {
     }
 
     if (fileMapTable && Array.isArray(fileMapTable)) {
-      await asyncArrayEach(fileMapTable, async (obj) => {
+      await async.each(fileMapTable, async (obj) => {
         if (
           obj.getDataFn &&
           !obj.pugPath &&
@@ -198,7 +198,7 @@ export async function fetchDataToJsonFile(args) {
       });
     }
 
-    await asyncArrayEach(pagesPugFilePathArr, async (fileName) => {
+    await async.each(pagesPugFilePathArr, async (fileName) => {
       if (pugPathArr && pugPathArr.length > 0) {
         if (!pugPathArr.find((item) => pathIsSame(fileName, item))) {
           return;
@@ -219,7 +219,7 @@ export async function fetchDataToJsonFile(args) {
       let data = await getData[funName](language);
       if (Array.isArray(data) && data.length > 0) {
         console.log(language, funName, "开始写入json文件");
-        await asyncArrayEach(data, async (item, index) => {
+        await async.eachOfLimit(data, 1000, async (item, index) => {
           if (typeof item !== "object" || Array.isArray(item)) {
             let type = Array.isArray(item) ? "array" : typeof item;
             return Promise.reject(
@@ -306,11 +306,11 @@ export async function buildFn() {
   const getData = await import("./getData.js");
   let totalCommonData = {};
   totalCommonData.langCommon = config.commonData;
-  await asyncArrayEach(config.languageList, async (lang) => {
+  await async.each(config.languageList, async (lang) => {
     let commonData = await getData.get_common_data(lang);
     totalCommonData[lang] = commonData;
   });
-  await asyncArrayEach(["js", "css", "img"], async (item) => {
+  await async.each(["js", "css", "img"], async (item) => {
     fse.ensureDirSync(path.join(__dirname, "/template/static", item));
     await fse.copy(
       path.join(__dirname, "/template/static", item),
@@ -339,7 +339,7 @@ export async function buildStatic() {
   await fse.remove(distOutputPath);
   await sleep(0);
   await fse.copy(path.join(__dirname, "public"), distOutputPath);
-  await asyncArrayEach(["js", "css", "img"], async (item) => {
+  await async.each(["js", "css", "img"], async (item) => {
     fse.ensureDirSync(path.join(__dirname, "/template/static", item));
     await fse.copy(
       path.join(__dirname, "/template/static", item),
@@ -350,7 +350,7 @@ export async function buildStatic() {
   let PagesPugToFn = await import("./pagesPugFn/index.js");
   const getData = await import("./getData.js");
   const fileMapTable = config.fileMapTable;
-  await asyncArrayEach(config.languageList, async (lang) => {
+  await async.each(config.languageList, async (lang) => {
     let langDataPath = path.join(jsonDataPath, lang);
     if (!fse.pathExistsSync(langDataPath)) {
       console.log(
@@ -362,7 +362,7 @@ export async function buildStatic() {
     commonData = _.merge(commonData, config.commonData);
 
     if (fileMapTable && Array.isArray(fileMapTable)) {
-      await asyncArrayEach(fileMapTable, async (obj) => {
+      await async.each(fileMapTable, async (obj) => {
         if (
           obj.pugPath &&
           obj.getDataFn &&
@@ -382,7 +382,7 @@ export async function buildStatic() {
           if (obj.deviceList && obj.deviceList.length > 0) {
             pugPathPreArr = obj.deviceList;
           }
-          await asyncArrayEach(pugPathPreArr, async (devicePrefix) => {
+          await async.each(pugPathPreArr, async (devicePrefix) => {
             let pugPath = path.join(
               pugRootPath,
               langPrefix,
@@ -493,7 +493,7 @@ export async function buildStatic() {
         recursive: true
       })
     ).filter((fileName) => fileName.endsWith(".json"));
-    await asyncArrayEach(pagesAllJsonFileName, async (jsonFileName) => {
+    await async.eachLimit(pagesAllJsonFileName, 64, async (jsonFileName) => {
       let data = await fse.readJSON(path.join(langDataPath, jsonFileName));
       let pugTemplateArr = data._template;
       if (!pugTemplateArr) {
@@ -521,7 +521,7 @@ export async function buildStatic() {
         });
       }
 
-      await asyncArrayEach(pugTemplateArr, async (pugTemplate) => {
+      await async.each(pugTemplateArr, (pugTemplate, callback) => {
         let funName = pugTemplate.split(pathSymbol).join("_").slice(0, -4);
         if (flag) {
           pugTemplate = pugTemplate.split(pathSymbol).slice(1).join(pathSymbol);
@@ -543,7 +543,9 @@ export async function buildStatic() {
           pugTemplate.replace(/\..*$/, ".html")
         );
         fse.ensureFileSync(htmlPath);
-        await fse.writeFile(htmlPath, html);
+        const writeStream = fse.createWriteStream(htmlPath);
+        writeStream.write(html);
+        writeStream.end(callback);
       });
     });
   });

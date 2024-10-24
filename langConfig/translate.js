@@ -10,7 +10,8 @@ const projectId = "3nm Game Site";
 let translate = new v2.Translate({ projectId, key });
 
 let orginLang = "us";
-let targetLangList = config.languageList;
+const args = process.argv.slice(2);
+let targetLangList = args.length > 0 ? args : config.languageList;
 
 //国家映射到语言
 const countryLanguageMap = {

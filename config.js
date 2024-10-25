@@ -5,7 +5,7 @@ export const config = {
   getDataFnTemplate:
     "(language) {\n let data = {page_name:''} || [{page_name:''}] \n return data \n}",
   languageList: ["us", "jp"],
-  commonData: { versoin: "1.0.0" },
+  commonData: { version: "1.0.0" },
   fnOutput: "demoFn",
   staticOutput: "demoDist",
   isMatchEsi: false,

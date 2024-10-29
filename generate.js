@@ -119,6 +119,7 @@ export async function fetchDataToJsonFile(args) {
   );
   const languageList = config.languageList;
   const fileMapTable = config.fileMapTable;
+  let pathExistRejMessage = "当前路径文件已存在!请检查路径或者page_name属性";
   let starTime = Date.now();
 
   await async.each(languageList, async (language) => {
@@ -153,6 +154,7 @@ export async function fetchDataToJsonFile(args) {
           }
           console.log(language, obj.getDataFn, "开始写入json文件");
           let outPutPath = obj.outPutPath.split("/").join(pathSymbol);
+          let jsonFilePath;
           if (Array.isArray(data)) {
             let name = outPutPath.split(pathSymbol).pop().replace(/\..*$/, "");
             const regex = /^\[.+\]$/;
@@ -173,26 +175,29 @@ export async function fetchDataToJsonFile(args) {
                       `命名但是${index}下标中对象属性不存在`
                   );
                 }
-                await fse.outputJson(
-                  path.join(
-                    JsonRootPath,
-                    language,
-                    outPutPath.replace(name, fileName)
-                  ),
-                  dataItem
+                jsonFilePath = path.join(
+                  JsonRootPath,
+                  language,
+                  outPutPath.replace(name, fileName)
                 );
+                if (fse.pathExistsSync(jsonFilePath)) {
+                  return Promise.reject(jsonFilePath + pathExistRejMessage);
+                }
+                await fse.outputJson(jsonFilePath, dataItem);
               }
             } else {
-              await fse.outputJson(
-                path.join(JsonRootPath, language, outPutPath),
-                data
-              );
+              jsonFilePath = path.join(JsonRootPath, language, outPutPath);
+              if (fse.pathExistsSync(jsonFilePath)) {
+                return Promise.reject(jsonFilePath + pathExistRejMessage);
+              }
+              await fse.outputJson(jsonFilePath, data);
             }
           } else if (typeof data === "object") {
-            await fse.outputJson(
-              path.join(JsonRootPath, language, outPutPath),
-              data
-            );
+            jsonFilePath = path.join(JsonRootPath, language, outPutPath);
+            if (fse.pathExistsSync(jsonFilePath)) {
+              return Promise.reject(jsonFilePath + pathExistRejMessage);
+            }
+            await fse.outputJson(jsonFilePath, data);
           }
         }
       });
@@ -248,6 +253,9 @@ export async function fetchDataToJsonFile(args) {
             templateArr.unshift(fileName);
           }
           item._template = templateArr;
+          if (fse.pathExistsSync(lastJsonFilePath)) {
+            return Promise.reject(lastJsonFilePath + pathExistRejMessage);
+          }
           await fse.outputJson(lastJsonFilePath, item);
         });
       } else if (data && typeof data === "object" && !Array.isArray(data)) {
@@ -270,6 +278,9 @@ export async function fetchDataToJsonFile(args) {
           templateArr.unshift(fileName);
         }
         data._template = templateArr;
+        if (fse.pathExistsSync(jsonFilePath)) {
+          return Promise.reject(jsonFilePath + pathExistRejMessage);
+        }
         await fse.outputJson(jsonFilePath, data);
       } else {
         console.log(language, funName, "期望返回数组、对象类型返回:", data);

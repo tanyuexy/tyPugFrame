@@ -24,6 +24,7 @@
     "express-useragent": "^1.0.15",
     "fs-extra": "^11.2.0",
     "ip": "^2.0.1",
+    "jstransformer-autoprefixer": "^2.0.0",
     "jstransformer-less": "^2.3.0",
     "jstransformer-scss": "^2.0.0",
     "less": "^4.2.0",

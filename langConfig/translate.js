@@ -10,8 +10,23 @@ const projectId = "3nm Game Site";
 let translate = new v2.Translate({ projectId, key });
 
 let orginLang = "us";
-const args = process.argv.slice(2);
-let targetLangList = args.length > 0 ? args : config.languageList;
+
+let args = process.argv.slice(2);
+let filParms = [];
+let filCountry = [];
+args.forEach((item) => {
+  const [key, value] = item.split("=");
+  if (value) {
+    if (key === "k") {
+      filParms = value.split(",");
+    }
+    if (key === "c") {
+      filCountry = value.split(",");
+    }
+  }
+});
+
+let targetLangList = filCountry.length > 0 ? filCountry : config.languageList;
 
 //国家映射到语言
 const countryLanguageMap = {
@@ -38,13 +53,21 @@ async function main() {
   await async.each(targetLangList, async (language) => {
     if (language === orginLang) return;
     console.log(language);
-    languageData[language] = {};
+    languageData[language] = languageData[language] || {};
     // 创建一个栈来模拟递归
     let stack = [{ original: orginData, copy: languageData[language] }];
     while (stack.length) {
-      const { original, copy } = stack.pop();
+      let { original, copy } = stack.pop();
       for (let key in original) {
         if (Object.prototype.hasOwnProperty.call(original, key)) {
+          //第一层的key过滤
+          if (
+            original === orginData &&
+            filParms.length > 0 &&
+            !filParms.includes(key)
+          ) {
+            continue;
+          }
           let value = original[key];
           if (typeof value === "string") {
             // 如果属性是字符串类型，进行翻译

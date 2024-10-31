@@ -1,4 +1,5 @@
 ## 目录结构
+
 - src/
   - langConfig  #多语言数据以及翻译模块
     - languageData.js  #多语言化所需数据 将会按国家作为key区分数据
@@ -9,10 +10,12 @@
     - pages  #放页面级pug，且实际生成的路由跟此文件夹一致(例如/pages/detail/index.pug -> domain/detail/xxx.html)
     - static  #静态文件存放的位置图片、样式、js、字体等资源建议放在这
   - config.js  #配置文件(后面会单独介绍)
-  - getData.js  #获取页面数据的文件所有数据的总入口  
-**按照设计初衷您只需要关注以上的目录即可，其他文件后续将会作为lib不再暴露出来。如果您遇到了必须修改其他文件才能达到需求的情况请 [联系我](https://www.feishu.cn/invitation/page/add_contact/?token=520h0966-4f6d-4e34-90f6-829ce85a2389)**
+  - getData.js  #获取页面数据的文件所有数据的总入口
+    **按照设计初衷您只需要关注以上的目录即可，其他文件后续将会作为lib不再暴露出来。如果您遇到了必须修改其他文件才能达到需求的情况请 [联系我](https://www.feishu.cn/invitation/page/add_contact/?token=520h0966-4f6d-4e34-90f6-829ce85a2389)**
+
 ## config.js配置
-  ```javascript 
+
+```javascript
         export const config = {
           //开发环境的配置
           devServer: {
@@ -66,39 +69,45 @@
             }
           ]
         }
-  ```
+```
+
 ## 开发流程
+
 1. 在/template/pages/目录下编写页面的pug文件
 2. 执行npm run getData 生成getData.js,在getData.js中会根据/template/pages/目录自动生成对应的函数，如/template/pages/index.pug将会在getData.js中生成get_index_data函数模版
 3. 在getData.js中生成函数的函数体中编写拿数据的代码
 4. 再次执行npm run getData这将会自动调用getData.js中页面的函数获取数据并存到/jsonData目录下
-5. 执行npm run dev 
-6. 通常情况下你将会得到开发环境的地址访问即可预览如果你有更新 /template/pages/目录中的pug文件请重复一次这个流程   
+5. 执行npm run dev
+6. 通常情况下你将会得到开发环境的地址访问即可预览如果你有更新 /template/pages/目录中的pug文件请重复一次这个流程
+
 ## 常用指令
+
 **npm run getData：** 执行gatData.js方法获取数据
 
 **npm run dev：** 开启开发环境服务器
 
-**npm run lang：** 默认将/langConfig/languageData.js的us的数据翻译到config.
-languageList配置的国家 可选参数k=属性1,属性2:本次只翻译k后面带的属性、c=国家1,国家2:将会覆盖config.languageList配置本次只翻译到这些国家
+**npm run lang：** 默认将/langConfig/languageData.js的us的数据翻译到config.languageList配置的国家 可选参数k=属性1,属性2:本次只翻译k后面带的属性、c=国家1,国家2:本次只翻译到c后面带的国家。例如npm run lang k=a,b c=jp,fr 这样会将us的数据对象中的a,b属性翻译到jp,fr的两个国家
 
 **npm run compileFn：** 将pug模版编译为生成函数写入/pagesPugFn/index.js
 
 **npm run buildFn：** 把数据、静态资源以及将pug模版生成函数然后打包
 
 **npm run buildStatic：** 把数据、静态资源将pug模版生成html然后打包
+
 ## 补充
+
 1. getData.js中会有一个保留的get_common_data(language)函数参数language为国家 您可以根据这个函数去返回各个国家所需要的不同数据建议是将这部分数据放在/langConfig/languageData.js这将可以结合翻译模块去使用。
-      ```javascript
-      import languageData from "./langConfig/languageData.js";
-      //这样在pug文件中可以使用common.lang 去访问数据
-      export async function get_common_data(language) {
-        let data = languageData[language];
-        return { lang: data };
-      }
-      ```
+   ```javascript
+   import languageData from "./langConfig/languageData.js";
+   //这样在pug文件中可以使用common.lang 去访问数据
+   export async function get_common_data(language) {
+     let data = languageData[language];
+     return { lang: data };
+   }
+   ```
 2. 通常不需要关注getData.js中的函数在哪里调用
-3. 假如想创建/detail/xxxx.html(具体名字由数据中的属性决定)的这种路由。您需要:1、pug文件为/template/detail/index.pug 2、getData.js中的获取此页面数据的函数返回值为对象数组并且每个对象中都有page_name属性这将做为页面的具体名字
+3. 本地访问页面时需要带.html
+4. 假如想创建/detail/xxxx.html(具体名字由数据中的属性决定)的这种路由。您需要:1、pug文件为/template/detail/index.pug 2、getData.js中的获取此页面数据的函数返回值为对象数组并且每个对象中都有page_name属性这将做为页面的具体名字
    ```javascript
     //将会生成100个页面路由为/detail/1.html -> /detail/100.html在pug文件中可以通过data.a拿到的数据
     export async function get_detail_index_data(language) {
@@ -108,4 +117,6 @@ languageList配置的国家 可选参数k=属性1,属性2:本次只翻译k后面
       data.push(obj);
     }
     return data;
+   ```
+
   }

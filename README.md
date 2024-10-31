@@ -67,7 +67,7 @@
   ```
 ## 开发流程
 1. 在/template/pages/目录下编写页面的pug文件
-2. 执行npm run getData 生成getData.js,在getData.js中会根据/template/pages/目录自动生成对应的函数，如有/template/pages/index.pug将会在getData.js中生成get_index_data函数模版
+2. 执行npm run getData 生成getData.js,在getData.js中会根据/template/pages/目录自动生成对应的函数，如/template/pages/index.pug将会在getData.js中生成get_index_data函数模版
 3. 在getData.js中生成函数的函数体中编写拿数据的代码
 4. 再次执行npm run getData这将会自动调用getData.js中页面的函数获取数据并存到/jsonData目录下
 5. 执行npm run dev 

@@ -15,6 +15,8 @@ export const config = {
   fnOutput: "sites",
   //pug打包成html的根目录名字
   staticOutput: "sites",
+  //打包会打包/template/static/的哪些文件夹(有些js、css文件将会嵌入pug中你可以区分不打包进去)
+  buildStaticDirArr: ["js", "css", "img"],
   //自定义打包的数据以及生成的html路径。如果说遇到以下情况:需要用同一个模版但不同数据、不同页面用到相同的数据但是每个页面存一份会太大了、页面可能没办法通过单一的getData.js的函数获取数据、将会用到此配置
   fileMapTable: [
     {

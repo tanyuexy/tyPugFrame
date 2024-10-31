@@ -321,7 +321,7 @@ export async function buildFn() {
     let commonData = await getData.get_common_data(lang);
     totalCommonData[lang] = commonData;
   });
-  await async.each(["js", "css", "img"], async (item) => {
+  await async.each(config.buildStaticDirArr, async (item) => {
     fse.ensureDirSync(path.join(__dirname, "/template/static", item));
     await fse.copy(
       path.join(__dirname, "/template/static", item),
@@ -350,7 +350,7 @@ export async function buildStatic() {
   await fse.remove(distOutputPath);
   await sleep(0);
   await fse.copy(path.join(__dirname, "public"), distOutputPath);
-  await async.each(["js", "css", "img"], async (item) => {
+  await async.each(config.buildStaticDirArr, async (item) => {
     fse.ensureDirSync(path.join(__dirname, "/template/static", item));
     await fse.copy(
       path.join(__dirname, "/template/static", item),

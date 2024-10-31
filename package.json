@@ -8,7 +8,8 @@
     "compileFn": "node main.js",
     "buildFn": "node main.js",
     "buildStatic": "node main.js",
-    "lang": "node ./langConfig/translate.js"
+    "lang": "node ./langConfig/translate.js",
+    "build": "npm run getData && npm run buildFn"
   },
   "type": "module",
   "keywords": [],

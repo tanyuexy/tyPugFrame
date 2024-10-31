@@ -3,6 +3,6 @@ jsonData
 .idea/
 .vscode
 sites
-demoFn
 pagesPugFn
 node_modules
+.DS_Store

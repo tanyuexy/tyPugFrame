@@ -1,11 +1,8 @@
-node_modules
 package-lock.json
 jsonData
 .idea/
 .vscode
-dist
-staticDist
-sourceData
+sites
 demoFn
 pagesPugFn
-demoDist
+node_modules

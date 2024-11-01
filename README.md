@@ -11,7 +11,7 @@
     - static  #静态文件存放的位置图片、样式、js、字体等资源建议放在这
   - config.js  #配置文件(后面会单独介绍)
   - getData.js  #获取页面数据的文件所有数据的总入口
-    **按照设计初衷您只需要关注以上的目录即可，其他文件后续将会作为lib不再暴露出来。如果您遇到了必须修改其他文件才能达到需求的情况请 [联系我](https://www.feishu.cn/invitation/page/add_contact/?token=520h0966-4f6d-4e34-90f6-829ce85a2389)**
+    **通常情况您只需要关注以上的目录即可，其他文件后续将会作为lib不再暴露出来。如果您遇到了必须修改其他文件才能达到需求的情况请 [联系我](https://www.feishu.cn/invitation/page/add_contact/?token=520h0966-4f6d-4e34-90f6-829ce85a2389)**
 
 ## config.js配置
 
@@ -86,7 +86,11 @@
 
 **npm run dev：** 开启开发环境服务器
 
-**npm run lang：** 默认将/langConfig/languageData.js的us的数据翻译到config.languageList配置的国家 可选参数k=属性1,属性2:本次只翻译k后面带的属性、c=国家1,国家2:本次只翻译到c后面带的国家。例如npm run lang k=a,b c=jp,fr 这样会将us的数据对象中的a,b属性翻译到jp,fr的两个国家
+**npm run lang：** 默认将/langConfig/languageData.js的us的数据翻译到config.languageList配置的国家 可选参数k=属性1,属性2:本次只翻译k后面带的属性、c=国家1,国家2:本次只翻译到c后面带的国家。
+```javascript
+//这样会将us的数据对象中的a,b属性翻译到jp,fr的两个国家
+npm run lang k=a,b c=jp,fr 
+```
 
 **npm run compileFn：** 将pug模版编译为生成函数写入/pagesPugFn/index.js
 

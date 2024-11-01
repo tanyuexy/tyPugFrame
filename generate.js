@@ -122,7 +122,7 @@ export async function fetchDataToJsonFile(args) {
   let pathExistRejMessage = "当前路径文件已存在!请检查路径或者page_name属性";
   let starTime = Date.now();
 
-  await async.each(languageList, async (language) => {
+  await async.eachSeries(languageList, async (language) => {
     if (langArr && langArr.length > 0) {
       if (!langArr.includes(language)) {
         return;

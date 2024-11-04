@@ -38,7 +38,8 @@ const countryLanguageMap = {
   vn: "vi",
   tw: "zh-TW",
   gb: "en",
-  br: "pt"
+  br: "pt",
+  in: "hi"
 };
 
 async function translateStr(str, targetLanguage) {

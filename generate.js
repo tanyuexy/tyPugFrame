@@ -122,129 +122,160 @@ export async function fetchDataToJsonFile(args) {
   let pathExistRejMessage = "当前路径文件已存在!请检查路径或者page_name属性";
   let starTime = Date.now();
 
-  await async.eachSeries(languageList, async (language) => {
-    if (langArr && langArr.length > 0) {
-      if (!langArr.includes(language)) {
-        return;
+  await async.eachLimit(
+    languageList,
+    config.fetchDataLangLimit,
+    async (language) => {
+      if (langArr && langArr.length > 0) {
+        if (!langArr.includes(language)) {
+          return;
+        }
       }
-    }
 
-    if (fileMapTable && Array.isArray(fileMapTable)) {
-      await async.each(fileMapTable, async (obj) => {
-        if (
-          obj.getDataFn &&
-          !obj.pugPath &&
-          obj.outPutPath &&
-          obj.outPutPath.endsWith(".json")
-        ) {
+      if (fileMapTable && Array.isArray(fileMapTable)) {
+        await async.each(fileMapTable, async (obj) => {
           if (
-            obj.languageList &&
-            obj.languageList.length > 0 &&
-            !obj.languageList.includes(language)
+            obj.getDataFn &&
+            !obj.pugPath &&
+            obj.outPutPath &&
+            obj.outPutPath.endsWith(".json")
           ) {
-            return;
-          }
-          let dataFn = getData[obj.getDataFn];
-          if (!dataFn || typeof dataFn !== "function") {
-            return Promise.reject(dataFn + "获取数据函数不存在!");
-          }
-          let data = await dataFn(language);
-          if (!data) {
-            return Promise.reject(dataFn + "获取的数据为null!");
-          }
-          console.log(language, obj.getDataFn, "开始写入json文件");
-          let outPutPath = obj.outPutPath.split("/").join(pathSymbol);
-          let jsonFilePath;
-          if (Array.isArray(data)) {
-            let name = outPutPath.split(pathSymbol).pop().replace(/\..*$/, "");
-            const regex = /^\[.+\]$/;
-            if (regex.test(name)) {
-              let property = name.slice(1, -1);
-              for (let index = 0; index < data.length; index++) {
-                const dataItem = data[index];
-                let fileName = dataItem[property];
-                if (
-                  fileName === null ||
-                  fileName === undefined ||
-                  fileName === ""
-                ) {
-                  return Promise.reject(
-                    dataFn +
-                      "获取的数据中期望以" +
-                      property +
-                      `命名但是${index}下标中对象属性不存在`
+            if (
+              obj.languageList &&
+              obj.languageList.length > 0 &&
+              !obj.languageList.includes(language)
+            ) {
+              return;
+            }
+            let dataFn = getData[obj.getDataFn];
+            if (!dataFn || typeof dataFn !== "function") {
+              return Promise.reject(dataFn + "获取数据函数不存在!");
+            }
+            let data = await dataFn(language);
+            if (!data) {
+              return Promise.reject(dataFn + "获取的数据为null!");
+            }
+            console.log(language, obj.getDataFn, "开始写入json文件");
+            let outPutPath = obj.outPutPath.split("/").join(pathSymbol);
+            let jsonFilePath;
+            if (Array.isArray(data)) {
+              let name = outPutPath
+                .split(pathSymbol)
+                .pop()
+                .replace(/\..*$/, "");
+              const regex = /^\[.+\]$/;
+              if (regex.test(name)) {
+                let property = name.slice(1, -1);
+                for (let index = 0; index < data.length; index++) {
+                  const dataItem = data[index];
+                  let fileName = dataItem[property];
+                  if (
+                    fileName === null ||
+                    fileName === undefined ||
+                    fileName === ""
+                  ) {
+                    return Promise.reject(
+                      dataFn +
+                        "获取的数据中期望以" +
+                        property +
+                        `命名但是${index}下标中对象属性不存在`
+                    );
+                  }
+                  jsonFilePath = path.join(
+                    JsonRootPath,
+                    language,
+                    outPutPath.replace(name, fileName)
                   );
+                  if (fse.pathExistsSync(jsonFilePath)) {
+                    return Promise.reject(jsonFilePath + pathExistRejMessage);
+                  }
+                  await fse.outputJson(jsonFilePath, dataItem);
                 }
-                jsonFilePath = path.join(
-                  JsonRootPath,
-                  language,
-                  outPutPath.replace(name, fileName)
-                );
+              } else {
+                jsonFilePath = path.join(JsonRootPath, language, outPutPath);
                 if (fse.pathExistsSync(jsonFilePath)) {
                   return Promise.reject(jsonFilePath + pathExistRejMessage);
                 }
-                await fse.outputJson(jsonFilePath, dataItem);
+                await fse.outputJson(jsonFilePath, data);
               }
-            } else {
+            } else if (typeof data === "object") {
               jsonFilePath = path.join(JsonRootPath, language, outPutPath);
               if (fse.pathExistsSync(jsonFilePath)) {
                 return Promise.reject(jsonFilePath + pathExistRejMessage);
               }
               await fse.outputJson(jsonFilePath, data);
             }
-          } else if (typeof data === "object") {
-            jsonFilePath = path.join(JsonRootPath, language, outPutPath);
-            if (fse.pathExistsSync(jsonFilePath)) {
-              return Promise.reject(jsonFilePath + pathExistRejMessage);
+          }
+        });
+      }
+
+      await async.each(pagesPugFilePathArr, async (fileName) => {
+        if (pugPathArr && pugPathArr.length > 0) {
+          if (!pugPathArr.find((item) => pathIsSame(fileName, item))) {
+            return;
+          }
+        }
+        let removepathArr = fileName.split(pathSymbol).slice(0, -1);
+        if (removepathArr.length > 0) {
+          await fse.remove(path.join(JsonRootPath, language, ...removepathArr));
+        }
+        let funName =
+          "get_" + fileName.split(pathSymbol).join("_").slice(0, -4) + "_data";
+
+        let jsonFilePath = fileName.slice(0, -4).split(pathSymbol);
+        if (!getData[funName] || typeof getData[funName] !== "function") {
+          console.log(funName, "获取数据函数不存在!");
+          return Promise.reject(funName + "获取数据函数不存在!");
+        }
+        let data = await getData[funName](language);
+        if (Array.isArray(data) && data.length > 0) {
+          console.log(language, funName, "开始写入json文件");
+          await async.eachOfLimit(data, 1000, async (item, index) => {
+            if (typeof item !== "object" || Array.isArray(item)) {
+              let type = Array.isArray(item) ? "array" : typeof item;
+              return Promise.reject(
+                funName + "返回的数据不为对象数组得到类型" + type + "[]"
+              );
             }
-            await fse.outputJson(jsonFilePath, data);
-          }
-        }
-      });
-    }
-
-    await async.each(pagesPugFilePathArr, async (fileName) => {
-      if (pugPathArr && pugPathArr.length > 0) {
-        if (!pugPathArr.find((item) => pathIsSame(fileName, item))) {
-          return;
-        }
-      }
-      let removepathArr = fileName.split(pathSymbol).slice(0, -1);
-      if (removepathArr.length > 0) {
-        await fse.remove(path.join(JsonRootPath, language, ...removepathArr));
-      }
-      let funName =
-        "get_" + fileName.split(pathSymbol).join("_").slice(0, -4) + "_data";
-
-      let jsonFilePath = fileName.slice(0, -4).split(pathSymbol);
-      if (!getData[funName] || typeof getData[funName] !== "function") {
-        console.log(funName, "获取数据函数不存在!");
-        return Promise.reject(funName + "获取数据函数不存在!");
-      }
-      let data = await getData[funName](language);
-      if (Array.isArray(data) && data.length > 0) {
-        console.log(language, funName, "开始写入json文件");
-        await async.eachOfLimit(data, 1000, async (item, index) => {
-          if (typeof item !== "object" || Array.isArray(item)) {
-            let type = Array.isArray(item) ? "array" : typeof item;
-            return Promise.reject(
-              funName + "返回的数据不为对象数组得到类型" + type + "[]"
+            let lastJsonFilePath;
+            if (item.page_name && item.page_name.length > 0) {
+              lastJsonFilePath = path.join(
+                JsonRootPath,
+                language,
+                ...jsonFilePath.slice(0, -1),
+                item.page_name
+              );
+            } else {
+              lastJsonFilePath =
+                path.join(JsonRootPath, language, ...jsonFilePath) +
+                "_" +
+                ++index +
+                ".json";
+            }
+            let templateArr = filterFinishArr.filter(
+              (item) => pagesPathFilter(item) === fileName
             );
-          }
-          let lastJsonFilePath;
-          if (item.page_name && item.page_name.length > 0) {
-            lastJsonFilePath = path.join(
+            if (fse.pathExistsSync(path.join(pugRootPath, fileName))) {
+              templateArr.unshift(fileName);
+            }
+            item._template = templateArr;
+            if (fse.pathExistsSync(lastJsonFilePath)) {
+              return Promise.reject(lastJsonFilePath + pathExistRejMessage);
+            }
+            await fse.outputJson(lastJsonFilePath, item);
+          });
+        } else if (data && typeof data === "object" && !Array.isArray(data)) {
+          console.log(language, funName, "开始写入json文件");
+          if (data.page_name && data.page_name.length > 0) {
+            jsonFilePath = path.join(
               JsonRootPath,
               language,
               ...jsonFilePath.slice(0, -1),
               item.page_name
             );
           } else {
-            lastJsonFilePath =
-              path.join(JsonRootPath, language, ...jsonFilePath) +
-              "_" +
-              ++index +
-              ".json";
+            jsonFilePath =
+              path.join(JsonRootPath, language, ...jsonFilePath) + ".json";
           }
           let templateArr = filterFinishArr.filter(
             (item) => pagesPathFilter(item) === fileName
@@ -252,41 +283,17 @@ export async function fetchDataToJsonFile(args) {
           if (fse.pathExistsSync(path.join(pugRootPath, fileName))) {
             templateArr.unshift(fileName);
           }
-          item._template = templateArr;
-          if (fse.pathExistsSync(lastJsonFilePath)) {
-            return Promise.reject(lastJsonFilePath + pathExistRejMessage);
+          data._template = templateArr;
+          if (fse.pathExistsSync(jsonFilePath)) {
+            return Promise.reject(jsonFilePath + pathExistRejMessage);
           }
-          await fse.outputJson(lastJsonFilePath, item);
-        });
-      } else if (data && typeof data === "object" && !Array.isArray(data)) {
-        console.log(language, funName, "开始写入json文件");
-        if (data.page_name && data.page_name.length > 0) {
-          jsonFilePath = path.join(
-            JsonRootPath,
-            language,
-            ...jsonFilePath.slice(0, -1),
-            item.page_name
-          );
+          await fse.outputJson(jsonFilePath, data);
         } else {
-          jsonFilePath =
-            path.join(JsonRootPath, language, ...jsonFilePath) + ".json";
+          console.log(language, funName, "期望返回数组、对象类型返回:", data);
         }
-        let templateArr = filterFinishArr.filter(
-          (item) => pagesPathFilter(item) === fileName
-        );
-        if (fse.pathExistsSync(path.join(pugRootPath, fileName))) {
-          templateArr.unshift(fileName);
-        }
-        data._template = templateArr;
-        if (fse.pathExistsSync(jsonFilePath)) {
-          return Promise.reject(jsonFilePath + pathExistRejMessage);
-        }
-        await fse.outputJson(jsonFilePath, data);
-      } else {
-        console.log(language, funName, "期望返回数组、对象类型返回:", data);
-      }
-    });
-  });
+      });
+    }
+  );
 
   console.log("写入完成花费:", (Date.now() - starTime) / 1000, "s");
 }

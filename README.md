@@ -67,7 +67,9 @@
               getDataFn: "get_group_data",
               outPutPath: "/common/group/[page_name].json"
             }
-          ]
+          ],
+          //下载数据的时候会并发下载几个国家的数据(如何下载的时候socket断了可以把这个改低点)
+          fetchDataLangLimit: 3
         }
 ```
 

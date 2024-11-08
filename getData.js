@@ -3,7 +3,7 @@ import path from "path";
 import _ from "lodash";
 import axios from "axios";
 import languageData from "./langConfig/languageData.js";
-axios.defaults.baseURL = "n.sp.com/xxxxx";
+axios.defaults.baseURL = "http://new.sp.com/xxxxx";
 axios.defaults.timeout = 1000 * 60 * 60;
 const __dirname = path.resolve();
 //pug文件中可以使用common.lang 去访问数据

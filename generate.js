@@ -132,6 +132,13 @@ export async function fetchDataToJsonFile(args) {
         }
       }
 
+      let commonData = await getData.get_common_data(language);
+      console.log(language, "get_common_data", "开始写入json文件");
+      await fse.outputJSON(
+        path.join(JsonRootPath, language, "_common.json"),
+        commonData
+      );
+
       if (fileMapTable && Array.isArray(fileMapTable)) {
         await async.each(fileMapTable, async (obj) => {
           if (
@@ -317,17 +324,27 @@ export async function buildFn() {
   );
 
   await fse.copy(path.join(__dirname, "public"), path.join(outputPath, "page"));
-  await fse.copy(
-    path.join(__dirname, "jsonData"),
-    path.join(outputPath, "data")
-  );
-  const getData = await import("./getData.js");
+
   let totalCommonData = {};
   totalCommonData.langCommon = config.commonData;
   await async.each(config.languageList, async (lang) => {
-    let commonData = await getData.get_common_data(lang);
+    let commonData = await fse.readJSON(
+      path.join(__dirname, "jsonData", lang, "_common.json")
+    );
     totalCommonData[lang] = commonData;
   });
+
+  await fse.copy(
+    path.join(__dirname, "jsonData"),
+    path.join(outputPath, "data"),
+    {
+      filter: (src, dest) => {
+        // 排除_common.json 文件
+        return !src.endsWith("_common.json");
+      }
+    }
+  );
+
   await async.each(config.buildStaticDirArr, async (item) => {
     fse.ensureDirSync(path.join(__dirname, "/template/static", item));
     await fse.copy(

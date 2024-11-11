@@ -393,7 +393,9 @@ export async function buildStatic() {
       );
       return;
     }
-    let commonData = await getData.get_common_data(lang);
+    let commonData = await fse.readJSON(
+      path.join(__dirname, "jsonData", lang, "_common.json")
+    );
     commonData = _.merge(commonData, config.commonData);
 
     if (fileMapTable && Array.isArray(fileMapTable)) {

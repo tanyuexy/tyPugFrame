@@ -345,13 +345,27 @@ export async function buildFn() {
     }
   );
 
-  await async.each(config.buildStaticDirArr, async (item) => {
-    fse.ensureDirSync(path.join(__dirname, "/template/static", item));
-    await fse.copy(
-      path.join(__dirname, "/template/static", item),
-      path.join(outputPath, "page/static", item)
-    );
-  });
+  await fse.copy(
+    path.join(__dirname, "/template/static"),
+    path.join(outputPath, "page/static"),
+    {
+      filter: (src, dest) => {
+        //根目录必须要返回true
+        if (src.endsWith("static")) {
+          return true;
+        }
+        if (config.buildStaticDirArr && config.buildStaticDirArr.length > 0) {
+          return !!config.buildStaticDirArr.find((item) => {
+            return src.startsWith(
+              path.join(__dirname, "/template/static", item)
+            );
+          });
+        }
+        return true;
+      }
+    }
+  );
+
   await fse.writeJSON(
     path.join(outputPath, "page", "common") + ".json",
     totalCommonData
@@ -374,13 +388,28 @@ export async function buildStatic() {
   await fse.remove(distOutputPath);
   await sleep(0);
   await fse.copy(path.join(__dirname, "public"), distOutputPath);
-  await async.each(config.buildStaticDirArr, async (item) => {
-    fse.ensureDirSync(path.join(__dirname, "/template/static", item));
-    await fse.copy(
-      path.join(__dirname, "/template/static", item),
-      path.join(distOutputPath, "/static", item)
-    );
-  });
+
+  await fse.copy(
+    path.join(__dirname, "/template/static"),
+    path.join(distOutputPath, "static"),
+    {
+      filter: (src, dest) => {
+        //根目录必须要返回true
+        if (src.endsWith("static")) {
+          return true;
+        }
+        if (config.buildStaticDirArr && config.buildStaticDirArr.length > 0) {
+          return !!config.buildStaticDirArr.find((item) => {
+            return src.startsWith(
+              path.join(__dirname, "/template/static", item)
+            );
+          });
+        }
+        return true;
+      }
+    }
+  );
+
   await compilePagesPugToFn();
   let PagesPugToFn = await import("./pagesPugFn/index.js");
   const getData = await import("./getData.js");

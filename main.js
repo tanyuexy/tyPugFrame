@@ -8,9 +8,9 @@ import {
 } from "./generate.js";
 let curCmd = process.env.npm_lifecycle_event;
 
-await generateGetDataFn();
 switch (curCmd) {
   case "getData":
+    await generateGetDataFn();
     const args = process.argv.slice(2);
     fetchDataToJsonFile(args);
     break;

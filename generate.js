@@ -278,7 +278,7 @@ export async function fetchDataToJsonFile(args) {
               JsonRootPath,
               language,
               ...jsonFilePath.slice(0, -1),
-              item.page_name
+              data.page_name
             );
           } else {
             jsonFilePath =

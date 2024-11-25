@@ -11,7 +11,6 @@ import {
   matchESI,
   pathSymbol
 } from "./utils.js";
-import { get_common_data } from "./getData.js";
 import http from "http";
 import WebSocket, { WebSocketServer } from "ws";
 import { config } from "./config.js";

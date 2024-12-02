@@ -111,7 +111,7 @@ export async function fetchDataToJsonFile(args) {
       if (key === "f") {
         filterFun = value.split(",");
       }
-      if (key === "l") {
+      if (key === "c") {
         filterLang = value.split(",");
       }
     }

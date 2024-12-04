@@ -9,6 +9,9 @@ import {
 let curCmd = process.env.npm_lifecycle_event;
 
 switch (curCmd) {
+  case "getFun":
+    await generateGetDataFn();
+    break;
   case "getData":
     await generateGetDataFn();
     const args = process.argv.slice(2);

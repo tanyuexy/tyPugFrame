@@ -12,11 +12,6 @@ export async function get_common_data(language) {
   return { lang: data };
 }
 
-export async function get_index_data(language) {
-  let data = { page_name: "", a: "index" } || [{ page_name: "" }];
-  return data;
-}
-
 //将会生成100个页面路由为/detail/1.html -> /detail/100.html在pug文件中可以通过data.a拿到的数据
 export async function get_detail_index_data(language) {
   let data = [];
@@ -24,5 +19,10 @@ export async function get_detail_index_data(language) {
     let obj = { page_name: index, a: "detail_" + index };
     data.push(obj);
   }
+  return data;
+}
+
+export async function get_index_data(language) {
+  let data = { page_name: "" } || [{ page_name: "" }];
   return data;
 }

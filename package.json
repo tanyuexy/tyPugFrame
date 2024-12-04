@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nodemon main.js",
     "getData": "node main.js",
+    "getFun": "node main.js",
     "compileFn": "node main.js",
     "buildFn": "node main.js",
     "buildStatic": "node main.js",

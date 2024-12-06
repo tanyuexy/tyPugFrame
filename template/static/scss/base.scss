@@ -35,3 +35,16 @@ body {
   background: url("/static/img/loading.gif") no-repeat center center;
   background-size: 100% 100%;
 }
+
+.line-text {
+  white-space: nowrap; /* 禁止换行 */
+  overflow: hidden; /* 隐藏超出部分 */
+  text-overflow: ellipsis; /* 超出部分显示省略号 */
+}
+
+.three-line-text {
+  display: -webkit-box; /* 使用 flexbox 布局 */
+  -webkit-line-clamp: 3; /* 限制最大显示 3 行 */
+  -webkit-box-orient: vertical; /* 垂直排列子项 */
+  overflow: hidden; /* 超出部分隐藏 */
+}

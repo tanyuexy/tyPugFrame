@@ -5,8 +5,10 @@ export const config = {
     port: 80
   },
   //配置getData.js中自动生成的函数模版
-  getDataFnTemplate:
-    "(language) {\n let data = {page_name:''} || [{page_name:''}] \n return data \n}",
+  getDataFnTemplate: function template(language) {
+    let data = { page_name: "" } || [{ page_name: "" }];
+    return data;
+  },
   //配置的国家数组将会遍历参数传递给getData.js中的函数并且影响翻译时默认将会翻译到的语言以及打包时候将会打包哪些国家的数据内容 数组的第一个国家将会是开发环境下默认访问到的国家的数据
   languageList: ["us"],
   //所有国家模版中都会用到的数据pug文件中可以使用common对象去访问

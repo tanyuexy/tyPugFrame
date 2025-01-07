@@ -18,83 +18,116 @@ const __dirname = path.resolve();
 const pugRootPath = path.join(__dirname, "/template/pages");
 
 /**
- * 将pages下的模版编译为生成函数
- * @param pugPath /template/pages下的pug模版路径
- * @returns
+ * 将pages目录下的pug模板编译为JS函数
+ * @param {string} pugPath - 指定编译的pug文件路径(相对于/template/pages)
+ * @throws {Error} 当路径不存在或编译失败时抛出错误
+ * @returns {Promise<void>}
  */
 export async function compilePagesPugToFn(pugPath) {
-  let pagesPugFilePathArr = await getPagesPugFilePathArr();
-  let fnRootPath = path.join(__dirname, "/pagesPugFn");
-  let fnStr;
-  //写入pug编译需要函数
-  let lastPugFnStr = fse.readFileSync("./pugRuntime.js");
-  let proList = [];
-  pagesPugFilePathArr.forEach((fileName, index) => {
-    if (pugPath) {
-      if (!fse.pathExistsSync(path.join(pugRootPath, pugPath))) {
-        console.log("路径不存在! 注意路径前面会自动拼接/template/pages!");
-        return Promise.reject(
-          "路径不存在! 注意路径前面会自动拼接/template/pages"
-        );
-      }
-      if (!pathIsSame(pugPath, fileName)) {
-        return;
-      }
+  try {
+    // 获取所有需要编译的pug文件路径
+    const pagesPugFilePathArr = await getPagesPugFilePathArr();
+    const fnRootPath = path.join(__dirname, "/pagesPugFn");
+
+    // 读取pug运行时代码作为基础代码
+    const lastPugFnStr = await fse.readFile("./pugRuntime.js", "utf8");
+
+    // 验证指定路径是否存在
+    if (pugPath && !fse.pathExistsSync(path.join(pugRootPath, pugPath))) {
+      throw new Error("路径不存在! 注意路径前面会自动拼接/template/pages");
     }
-    proList.push(
-      new Promise(async (resolve, reject) => {
+
+    let compiledCode = lastPugFnStr;
+
+    // 使用async库并发编译pug文件
+    await async.eachLimit(
+      // 过滤出需要编译的文件
+      pagesPugFilePathArr.filter(
+        (fileName) => !pugPath || pathIsSame(pugPath, fileName)
+      ),
+      10, // 限制并发数为10
+      async (fileName) => {
         const filePath = path.join(pugRootPath, fileName);
-        let funName = fileName.split(pathSymbol).join("_").slice(0, -4);
-        let pugValue = await fse.readFile(filePath);
-        fnStr = pug.compileClient(pugValue, {
+        const funName = fileName.split(pathSymbol).join("_").slice(0, -4);
+
+        // 读取并编译pug文件
+        const pugValue = await fse.readFile(filePath, "utf8");
+        const fnStr = pug.compileClient(pugValue, {
           filename: filePath,
           basedir: path.join(__dirname, "/template"),
           compileDebug: true,
           name: funName,
           filters: getCompilePugFilter()
         });
-        fnStr = fnStr.replace(
-          `function ${funName}\(locals\)`,
-          `export function ${funName}\(locals\)`
+
+        // 提取函数定义部分
+        const functionStart = fnStr.indexOf(`function ${funName}(locals)`);
+        const functionEnd = fnStr.lastIndexOf("}") + 1;
+
+        if (functionStart === -1) {
+          throw new Error(`无法在编译结果中找到函数 ${funName}`);
+        }
+
+        // 只提取函数定义部分并转换为ES模块格式
+        const functionBody = fnStr.slice(functionStart, functionEnd);
+        const exportFn = functionBody.replace(
+          `function ${funName}(locals)`,
+          `export function ${funName}(locals)`
         );
-        lastPugFnStr += fnStr.slice(
-          fnStr.indexOf(`export function ${funName}\(locals\)`)
-        );
-        resolve();
-      })
+
+        compiledCode += exportFn;
+      }
     );
-  });
-  await Promise.all(proList);
-  let toPath = path.join(fnRootPath, "index") + ".js";
-  let result = UglifyJS.minify(lastPugFnStr);
-  fse.ensureFileSync(toPath);
-  await fse.writeFile(toPath, result.code);
+
+    // 压缩代码
+    const result = UglifyJS.minify(compiledCode);
+    if (result.error) {
+      throw new Error(`代码压缩失败: ${result.error}`);
+    }
+
+    // 写入最终文件
+    const outputPath = path.join(fnRootPath, "index.js");
+    await fse.ensureFile(outputPath);
+    await fse.writeFile(outputPath, result.code);
+  } catch (error) {
+    console.error("编译PUG模板失败:", error);
+    throw error;
+  }
 }
 
 /**
- * 向getData.js中注入获取数据函数
+ * 向getData.js中注入数据获取函数
+ * 为每个pug模板自动生成对应的数据获取函数
+ * @returns {Promise<void>}
  */
 export async function generateGetDataFn() {
-  const getDataFile = await fse.readFile("./getData.js");
-  let pagesPugFilePathArr = await getPagesPugFilePathArr(true);
+  try {
+    const getDataFile = await fse.readFile("./getData.js", "utf8");
+    const pagesPugFilePathArr = await getPagesPugFilePathArr(true);
 
-  if (!getDataFile.includes("get_common_data")) {
-    let fun = `export async function get_common_data(language) {\n return {} \n}\n`;
-    await fse.appendFile("./getData.js", fun);
-  }
-  pagesPugFilePathArr.forEach(async (fileName) => {
-    let funName =
-      "get_" + fileName.split(pathSymbol).join("_").slice(0, -4) + "_data";
-    if (!getDataFile.includes(funName)) {
-      let fun;
-      if (config.getDataFnTemplate && config.getDataFnTemplate.length > 0) {
-        fun = `export async function ${funName}${config.getDataFnTemplate}\n`;
-      } else {
-        fun = `export async function ${funName}(language) {\n let data = {page_name:''} || [{page_name:''}] || null \n return data \n}\n`;
-      }
-      await fse.appendFile("./getData.js", fun);
+    // 注入公共数据获取函数
+    if (!getDataFile.includes("get_common_data")) {
+      const commonDataFn = `export async function get_common_data(language) {
+        return {}
+      }\n`;
+      await fse.appendFile("./getData.js", commonDataFn);
     }
-  });
+
+    // 为每个页面注入数据获取函数
+    await async.each(pagesPugFilePathArr, async (fileName) => {
+      const funName =
+        "get_" + fileName.split(pathSymbol).join("_").slice(0, -4) + "_data";
+
+      if (!getDataFile.includes(funName)) {
+        const template = config.getDataFnTemplate.toString().replace("template",funName);
+        const dataFn = `\nexport async ${template}`;
+        await fse.appendFile("./getData.js", dataFn);
+      }
+    });
+  } catch (error) {
+    console.error("生成数据函数失败:", error);
+    throw error;
+  }
 }
 
 /**

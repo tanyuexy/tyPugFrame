@@ -21,7 +21,6 @@ export async function get_detail_index_data(language) {
   }
   return data;
 }
-
 export async function get_index_data(language) {
   let data = { page_name: "" } || [{ page_name: "" }];
   return data;

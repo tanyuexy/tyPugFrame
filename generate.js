@@ -7,7 +7,8 @@ import {
   pathIsSame,
   sleep,
   pagesPathFilter,
-  pathSymbol
+  pathSymbol,
+  obfuscateJavaScript
 } from "./utils.js";
 import _ from "lodash";
 import { config } from "./config.js";
@@ -407,9 +408,17 @@ export async function buildFn() {
     totalCommonData
   );
 
+  if (config.obfuscateJavaScript) {
+    console.log("开始混淆js文件...");
+    console.time("混淆js文件");
+    await obfuscateJavaScript(path.join(outputPath, "page", "static"));
+    console.timeEnd("混淆js文件");
+  }
+
   console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");
 }
 
+//html文件打包 不维护了
 export async function buildStatic() {
   let jsonDataPath = path.join(__dirname, "jsonData");
 

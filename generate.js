@@ -410,9 +410,10 @@ export async function buildFn() {
 
   if (config.obfuscateJavaScript) {
     console.log("开始混淆js文件...");
-    console.time("混淆js文件");
+    const startTime = Date.now();
     await obfuscateJavaScript(path.join(outputPath, "page", "static"));
-    console.timeEnd("混淆js文件");
+    const costTime = (Date.now() - startTime) / 1000;
+    console.log("混淆js文件耗时:", costTime, "s");
   }
 
   console.log("打包完成花费:", (Date.now() - starTime) / 1000, "s");

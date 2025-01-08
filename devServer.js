@@ -104,9 +104,20 @@ app.get("*", async (req, res) => {
       console.log(
         `请求路径:${req.path}  模版路径:${pugPath}  数据JSON文件路径或getData中的函数名:${jsonDataPath}`
       );
-      let commonData = await fse.readJSON(
-        path.join(__dirname, "jsonData", language, "_common.json")
-      );
+      let commonData = {};
+      if (config.languageFileChangeUpdateCommon) {
+        commonData = await (
+          await import("./getData.js")
+        )["get_common_data"](language);
+        await fse.writeJSON(
+          path.join(__dirname, "jsonData", language, "_common.json"),
+          commonData
+        );
+      } else {
+        commonData = await fse.readJSON(
+          path.join(__dirname, "jsonData", language, "_common.json")
+        );
+      }
       let _refreshScript = `<script>const ws=new WebSocket('ws://${localIp}:${port}');ws.onmessage=function(event){if(event.data==='refresh'){console.log('Refreshing page...');location.reload()}}</script>`;
       res.render(
         pugPath,

@@ -22,5 +22,7 @@ export const config = {
   //自定义打包的数据以及生成的html路径。如果说遇到以下情况:需要用同一个模版但不同数据、不同页面用到相同的数据但是每个页面存一份会太大了、页面可能没办法通过单一的getData.js的函数获取数据、将会用到此配置
   fileMapTable: [],
   //下载数据的时候会并发下载几个国家的数据(如果下载的时候socket断了可以把这个改低点)
-  fetchDataLangLimit: 3
+  fetchDataLangLimit: 3,
+  // 是否监听语言文件变化重新获取_common.json的数据
+  languageFileChangeUpdateCommon: true
 };

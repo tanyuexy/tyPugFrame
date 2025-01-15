@@ -360,6 +360,15 @@ export async function buildFn() {
     path.join(outputPath, "page/pages.js")
   );
 
+  if (!fse.pathExistsSync(path.join(__dirname, "router.js"))) {
+    return Promise.reject("router.js文件不存在!");
+  }
+
+  await fse.copy(
+    path.join(__dirname, "router.js"),
+    path.join(outputPath, "page/router.js")
+  );
+
   await fse.copy(path.join(__dirname, "public"), path.join(outputPath, "page"));
 
   let totalCommonData = {};
